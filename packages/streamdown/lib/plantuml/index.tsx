@@ -1,12 +1,11 @@
 import { Diagram } from "../diagram";
 import { toSvgDiagramPlugin } from "../diagram/adapter";
 import { usePlantUmlPlugin } from "../plugin-context";
-import type { PlantUmlConfig } from "../plugin-types";
 
 interface PlantUmlProps {
   chart: string;
   className?: string;
-  config?: PlantUmlConfig;
+  config?: unknown;
   fullscreen?: boolean;
   language?: string;
   showControls?: boolean;

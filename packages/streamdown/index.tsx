@@ -66,6 +66,7 @@ import {
   type PlantUmlOptions,
   type PortalTarget,
   type ScrollableComponent,
+  type SmilesOptions,
   StreamdownContext,
   type StreamdownContextType,
   type VegaOptions,

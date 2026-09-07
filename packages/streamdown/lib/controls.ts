@@ -10,7 +10,10 @@ interface TableCopyCallbacks {
   onError?: (error: Error) => void;
 }
 
-const lookupTypeConfig = (config: ControlsConfig, type: string) => {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const lookupTypeConfig = (config: ControlsConfig, type: string): unknown => {
   if (typeof config === "boolean") {
     return;
   }
@@ -32,12 +35,15 @@ export const getDownloadFilename = (
   }
 
   const typeConfig = lookupTypeConfig(config, type);
-  if (typeof typeConfig !== "object") {
+  if (!isRecord(typeConfig)) {
     return fallback;
   }
 
   const downloadConfig = typeConfig.download;
-  if (typeof downloadConfig !== "object") {
+  if (
+    !isRecord(downloadConfig) ||
+    typeof downloadConfig.filename !== "string"
+  ) {
     return fallback;
   }
 
@@ -61,17 +67,19 @@ export function getCopyCallbacks(
   }
 
   const typeConfig = lookupTypeConfig(config, type);
-  if (typeof typeConfig !== "object") {
+  if (!isRecord(typeConfig)) {
     return {};
   }
 
   const copyConfig = typeConfig.copy;
-  if (typeof copyConfig !== "object" || copyConfig === null) {
+  if (!isRecord(copyConfig)) {
     return {};
   }
 
   return {
-    onCopy: copyConfig.onCopy,
-    onError: copyConfig.onError,
-  };
+    onCopy:
+      typeof copyConfig.onCopy === "function" ? copyConfig.onCopy : undefined,
+    onError:
+      typeof copyConfig.onError === "function" ? copyConfig.onError : undefined,
+  } as CodeCopyCallbacks | TableCopyCallbacks;
 }

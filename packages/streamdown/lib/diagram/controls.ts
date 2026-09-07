@@ -43,8 +43,8 @@ export const shouldShowDiagramControl = (
     return true;
   }
 
-  if (typeof typeConfig === "object") {
-    return typeConfig[controlType] !== false;
+  if (typeof typeConfig === "object" && typeConfig !== null) {
+    return (typeConfig as Record<string, unknown>)[controlType] !== false;
   }
 
   return true;

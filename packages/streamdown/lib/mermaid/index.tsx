@@ -1,12 +1,11 @@
 import { Diagram } from "../diagram";
 import { toSvgDiagramPlugin } from "../diagram/adapter";
 import { useMermaidPlugin } from "../plugin-context";
-import type { MermaidConfig } from "../plugin-types";
 
 interface MermaidProps {
   chart: string;
   className?: string;
-  config?: MermaidConfig;
+  config?: unknown;
   fullscreen?: boolean;
   language?: string;
   showControls?: boolean;
