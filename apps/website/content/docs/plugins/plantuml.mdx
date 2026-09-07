@@ -10,7 +10,7 @@ related:
   - /docs/plugins/mermaid
 ---
 
-The `@streamdown/plantuml` plugin renders [PlantUML](https://plantuml.com/) diagrams in the browser using the official TeaVM engine (`@plantuml/core`). The engine is loaded only when a `plantuml` or `puml` fence is actually rendered.
+The `@streamdown/plantuml` plugin renders [PlantUML](https://plantuml.com/) diagrams in the browser using the official TeaVM engine (`@plantuml/core`). The engine stays out of your bundler graph until you import the engine entry, and it only runs when a `plantuml` or `puml` fence is actually rendered.
 
 - Interactive controls (fullscreen, download, copy)
 - Dark-mode rendering when the page is in dark theme
@@ -19,13 +19,18 @@ The `@streamdown/plantuml` plugin renders [PlantUML](https://plantuml.com/) diag
 ## Install
 
 ```package-install
-npm install @streamdown/plantuml
+npm install @streamdown/plantuml @plantuml/core
 ```
+
+`@plantuml/core` is an optional peer dependency: importing the engine entry is what pulls it into your bundler's module graph, so apps that don't use the plugin never bundle it.
 
 ## Usage
 
 ```tsx title="chat.tsx" lineNumbers
-import { plantuml } from '@streamdown/plantuml';
+import { createPlantUmlPlugin } from '@streamdown/plantuml';
+import { engine } from '@streamdown/plantuml/engine';
+
+const plantuml = createPlantUmlPlugin({ engine });
 
 <Streamdown plugins={{ plantuml }}>
   {markdown}

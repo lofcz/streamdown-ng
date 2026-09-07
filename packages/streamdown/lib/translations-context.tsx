@@ -23,13 +23,21 @@ export interface StreamdownTranslations {
   copyTableAsCsv: string;
   copyTableAsMarkdown: string;
   copyTableAsTsv: string;
-  // Diagram / model renderers (Mermaid, PlantUML, OpenSCAD)
+  // Diagram / model renderers (Mermaid, PlantUML, Vega, SMILES, OpenSCAD)
+  diagramChart: string;
+  diagramErrorLabel: string;
+  diagramFormatSource: string;
   diagramLoading: string;
+  diagramPluginMissing: string;
+  diagramRenderFailed: string;
   // Mermaid
   downloadDiagram: string;
+  downloadDiagramAsJson: string;
   downloadDiagramAsMmd: string;
   downloadDiagramAsPng: string;
   downloadDiagramAsPuml: string;
+  downloadDiagramAsSmi: string;
+  downloadDiagramAsSource: string;
   downloadDiagramAsSvg: string;
   downloadFile: string;
   // Image
@@ -71,9 +79,21 @@ export interface StreamdownTranslations {
   plantumlRenderFailed: string;
   resetView: string;
   showCode: string;
+  smilesChart: string;
+  smilesErrorLabel: string;
+  smilesFormatSmi: string;
+  smilesPluginMissing: string;
+  smilesRenderFailed: string;
   tableFormatCsv: string;
   tableFormatMarkdown: string;
   tableFormatTsv: string;
+  vegaChart: string;
+  vegaErrorLabel: string;
+  vegaFormatJson: string;
+  vegaFormatPng: string;
+  vegaFormatSvg: string;
+  vegaPluginMissing: string;
+  vegaRenderFailed: string;
   viewFullscreen: string;
   zoomIn: string;
   zoomOut: string;
@@ -98,13 +118,22 @@ export const defaultTranslations: StreamdownTranslations = {
   downloadDiagramAsPng: "Download diagram as PNG",
   downloadDiagramAsMmd: "Download diagram as MMD",
   downloadDiagramAsPuml: "Download diagram as PlantUML",
+  downloadDiagramAsSmi: "Download diagram as SMILES",
+  downloadDiagramAsJson: "Download diagram as JSON",
+  downloadDiagramAsSource: "Download diagram source",
   viewFullscreen: "View fullscreen",
   exitFullscreen: "Exit fullscreen",
   mermaidFormatSvg: "SVG",
   mermaidFormatPng: "PNG",
   mermaidFormatMmd: "MMD",
-  // Diagram / model renderers (Mermaid, PlantUML, OpenSCAD)
+  // Diagram / model renderers (Mermaid, PlantUML, Vega, SMILES, OpenSCAD)
+  diagramChart: "Diagram",
+  diagramErrorLabel: "Diagram Error",
+  diagramFormatSource: "Source",
   diagramLoading: "Loading diagram...",
+  diagramPluginMissing:
+    "Diagram plugin not available. Please add a matching diagram plugin to enable rendering.",
+  diagramRenderFailed: "Failed to render diagram",
   showCode: "Show Code",
   mermaidErrorLabel: "Mermaid Error",
   mermaidPluginMissing:
@@ -132,6 +161,20 @@ export const defaultTranslations: StreamdownTranslations = {
   plantumlFormatSvg: "SVG",
   plantumlFormatPng: "PNG",
   plantumlFormatPuml: "PUML",
+  smilesChart: "Chemical structure",
+  smilesErrorLabel: "SMILES Error",
+  smilesPluginMissing:
+    "SMILES plugin not available. Please add the smiles plugin to enable chemical structure rendering.",
+  smilesRenderFailed: "Failed to render SMILES structure",
+  smilesFormatSmi: "SMI",
+  vegaChart: "Vega chart",
+  vegaErrorLabel: "Vega Error",
+  vegaPluginMissing:
+    "Vega plugin not available. Please add the vega plugin to enable chart rendering.",
+  vegaRenderFailed: "Failed to render Vega chart",
+  vegaFormatSvg: "SVG",
+  vegaFormatPng: "PNG",
+  vegaFormatJson: "JSON",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
   resetView: "Reset zoom and pan",

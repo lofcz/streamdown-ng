@@ -12,7 +12,9 @@ import type {
   MermaidConfig,
   OpenScadConfig,
   PlantUmlConfig,
+  SmilesConfig,
   ThemeInput,
+  VegaConfig,
 } from "./plugin-types";
 import type { CSVSeparator } from "./table/utils";
 
@@ -25,6 +27,15 @@ export type CopyControlConfig<TOnCopy = () => void> =
   | {
       onCopy?: TOnCopy;
       onError?: (error: Error) => void;
+    };
+
+export type DiagramControls =
+  | boolean
+  | {
+      download?: DownloadControlConfig;
+      copy?: CopyControlConfig;
+      fullscreen?: boolean;
+      panZoom?: boolean;
     };
 
 export type ControlsConfig =
@@ -44,22 +55,15 @@ export type ControlsConfig =
             copy?: CopyControlConfig;
             download?: DownloadControlConfig;
           };
-      mermaid?:
-        | boolean
-        | {
-            download?: DownloadControlConfig;
-            copy?: CopyControlConfig;
-            fullscreen?: boolean;
-            panZoom?: boolean;
-          };
-      plantuml?:
-        | boolean
-        | {
-            download?: DownloadControlConfig;
-            copy?: CopyControlConfig;
-            fullscreen?: boolean;
-            panZoom?: boolean;
-          };
+      mermaid?: DiagramControls;
+      plantuml?: DiagramControls;
+      smiles?: DiagramControls;
+      vega?: DiagramControls;
+      /**
+       * Per-engine controls for extra SVG diagrams registered via
+       * `plugins.diagrams`, keyed by plugin `name`.
+       */
+      diagrams?: Record<string, DiagramControls>;
       openscad?:
         | boolean
         | {
@@ -88,26 +92,43 @@ export interface LinkSafetyConfig {
   renderModal?: (props: LinkSafetyModalProps) => React.ReactNode;
 }
 
-export interface MermaidErrorComponentProps {
+export interface DiagramErrorComponentProps {
   chart: string;
   error: string;
   retry: () => void;
 }
+
+export interface DiagramOptions {
+  config?: unknown;
+  errorComponent?: React.ComponentType<DiagramErrorComponentProps>;
+}
+
+export type MermaidErrorComponentProps = DiagramErrorComponentProps;
 
 export interface MermaidOptions {
   config?: MermaidConfig;
   errorComponent?: React.ComponentType<MermaidErrorComponentProps>;
 }
 
-export interface PlantUmlErrorComponentProps {
-  chart: string;
-  error: string;
-  retry: () => void;
-}
+export type PlantUmlErrorComponentProps = DiagramErrorComponentProps;
 
 export interface PlantUmlOptions {
   config?: PlantUmlConfig;
   errorComponent?: React.ComponentType<PlantUmlErrorComponentProps>;
+}
+
+export type VegaErrorComponentProps = DiagramErrorComponentProps;
+
+export interface VegaOptions {
+  config?: VegaConfig;
+  errorComponent?: React.ComponentType<VegaErrorComponentProps>;
+}
+
+export type SmilesErrorComponentProps = DiagramErrorComponentProps;
+
+export interface SmilesOptions {
+  config?: SmilesConfig;
+  errorComponent?: React.ComponentType<SmilesErrorComponentProps>;
 }
 
 export interface OpenScadErrorComponentProps {
@@ -174,6 +195,8 @@ export interface StreamdownContextType {
   /** Merged components/plugins so custom renderers (e.g. callout body) can re-parse nested markdown identically to the outer pass. */
   components?: Components;
   controls: ControlsConfig;
+  /** Per-engine options for extra SVG diagrams, keyed by plugin `name`. */
+  diagrams?: Record<string, DiagramOptions>;
   isAnimating: boolean;
   /** Show line numbers in code blocks. @default true */
   lineNumbers: boolean;
@@ -191,8 +214,10 @@ export interface StreamdownContextType {
   /** Component used for horizontal-scroll regions (code body, table). @default plain div */
   scrollable?: ScrollableComponent;
   shikiTheme: [ThemeInput, ThemeInput];
+  smiles?: SmilesOptions;
   /** Max height for tables (px number or CSS length). `0` / `Infinity` disables. @default 300 */
   tableMaxHeight?: number | string;
+  vega?: VegaOptions;
 }
 
 const defaultShikiTheme: [ThemeInput, ThemeInput] = [
@@ -215,6 +240,9 @@ export const defaultStreamdownContext: StreamdownContextType = {
   mermaid: undefined,
   openscad: undefined,
   plantuml: undefined,
+  smiles: undefined,
+  vega: undefined,
+  diagrams: undefined,
   linkSafety: defaultLinkSafetyConfig,
   portal: undefined,
   tableMaxHeight: 300,

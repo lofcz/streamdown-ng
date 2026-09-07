@@ -112,6 +112,62 @@ export interface DiagramPlugin {
 }
 
 /**
+ * Shared SVG diagram contract used by the generic renderer.
+ * Mermaid and PlantUML are adapted to this shape in core; Vega implements it
+ * natively. Extra engines (Graphviz, D2, …) can be passed via `plugins.diagrams`.
+ */
+export interface SvgDiagramPlugin {
+  /**
+   * Language identifiers for code blocks
+   */
+  language: string | readonly string[];
+  name: string;
+  /**
+   * Render source to an SVG string. `options` is plugin-specific and may
+   * include a `language` field for engines that handle multiple fences.
+   */
+  render: (source: string, options?: unknown) => Promise<{ svg: string }>;
+  /**
+   * File extension (no dot) used when downloading the source.
+   * @default "txt"
+   */
+  sourceExtension?: string;
+  type: "diagram";
+}
+
+/**
+ * Structural type for Vega / Vega-Lite configuration.
+ * Avoids a hard dependency on `vega` / `vega-lite` in the core bundle.
+ */
+export interface VegaConfig {
+  /**
+   * How to interpret the spec. `"auto"` uses the fence language and `$schema`.
+   */
+  mode?: "auto" | "vega" | "vega-lite";
+}
+
+export interface VegaInstance {
+  render: (source: string, options?: VegaConfig) => Promise<{ svg: string }>;
+}
+
+/**
+ * Plugin for diagram rendering (Vega / Vega-Lite)
+ */
+export interface VegaPlugin {
+  /**
+   * Get the Vega instance (initialized with optional config)
+   */
+  getVega: (config?: VegaConfig) => VegaInstance;
+  /**
+   * Language identifiers for code blocks (`vega`, `vega-lite`, `vegalite`)
+   */
+  language: string | readonly string[];
+  name: "vega";
+  sourceExtension?: string;
+  type: "diagram";
+}
+
+/**
  * Structural type for PlantUML configuration.
  * Avoids a hard dependency on `@plantuml/core` in the core bundle.
  */
@@ -224,12 +280,47 @@ export interface OpenScadPlugin {
 }
 
 /**
+ * Structural type for SMILES configuration.
+ * Avoids a hard dependency on `smiles-drawer` in the core bundle.
+ */
+export interface SmilesConfig {
+  elementColors?: boolean;
+  height?: number;
+  theme?: "light" | "dark" | "oldschool" | "auto";
+  width?: number;
+}
+
+export interface SmilesInstance {
+  render: (source: string, options?: SmilesConfig) => Promise<{ svg: string }>;
+}
+
+/**
+ * Plugin for chemical structure rendering (SMILES)
+ */
+export interface SmilesPlugin {
+  /**
+   * Get the SMILES instance (initialized with optional config)
+   */
+  getSmiles: (config?: SmilesConfig) => SmilesInstance;
+  /**
+   * Language identifiers for code blocks (`smiles`, `smi`)
+   */
+  language: string | readonly string[];
+  name: "smiles";
+  sourceExtension?: string;
+  type: "diagram";
+}
+
+/**
  * Union type for all plugins
  */
 export type StreamdownPlugin =
   | CodeHighlighterPlugin
   | DiagramPlugin
   | PlantUmlPlugin
+  | VegaPlugin
+  | SmilesPlugin
+  | SvgDiagramPlugin
   | MathPlugin
   | CjkPlugin
   | OpenScadPlugin;
@@ -255,9 +346,16 @@ export interface CustomRenderer {
 export interface PluginConfig {
   cjk?: CjkPlugin;
   code?: CodeHighlighterPlugin;
+  /**
+   * Extra SVG diagram engines, looked up by fence language after the named
+   * mermaid / plantuml / vega / smiles slots.
+   */
+  diagrams?: SvgDiagramPlugin[];
   math?: MathPlugin;
   mermaid?: DiagramPlugin;
   openscad?: OpenScadPlugin;
   plantuml?: PlantUmlPlugin;
   renderers?: CustomRenderer[];
+  smiles?: SmilesPlugin | SvgDiagramPlugin;
+  vega?: VegaPlugin | SvgDiagramPlugin;
 }

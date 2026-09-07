@@ -166,9 +166,21 @@ Math rendering and CJK support require installing separate plugins. See [Mathema
       description: "PlantUML diagram configuration and error handling",
       type: "PlantUmlOptions",
     },
+    vega: {
+      description: "Vega / Vega-Lite chart configuration and error handling",
+      type: "VegaOptions",
+    },
+    smiles: {
+      description: "SMILES chemical structure configuration and error handling",
+      type: "SmilesOptions",
+    },
+    diagrams: {
+      description: "Per-engine options for extra SVG diagrams registered via plugins.diagrams, keyed by plugin name.",
+      type: "Record<string, DiagramOptions>",
+    },
     controls: {
       description:
-        "Control visibility of interactive buttons and custom download filenames for code, tables, mermaid, and PlantUML diagrams.",
+        "Control visibility of interactive buttons and custom download filenames for code, tables, and SVG diagrams (Mermaid, PlantUML, Vega, SMILES, extras).",
       type: "ControlsConfig",
       default: "true",
     },
@@ -419,6 +431,24 @@ The `controls` prop can be configured granularly. Set a block type to `false` to
       fullscreen: true,
       panZoom: true,
     },
+    vega: {
+      download: { filename: "revenue" }, // Download as revenue.svg / revenue.png / revenue.json
+      copy: {
+        onCopy: () => announce("Copied"),
+        onError: (error) => toast.error(error.message),
+      },
+      fullscreen: true,
+      panZoom: true,
+    },
+    smiles: {
+      download: { filename: "aspirin" }, // Download as aspirin.svg / aspirin.png / aspirin.smi
+      copy: {
+        onCopy: () => announce("Copied"),
+        onError: (error) => toast.error(error.message),
+      },
+      fullscreen: true,
+      panZoom: true,
+    },
     openscad: {
       download: { filename: "model" },
       copy: {
@@ -433,7 +463,7 @@ The `controls` prop can be configured granularly. Set a block type to `false` to
 </Streamdown>
 ```
 
-You can still use `download: true` (or omit it) to keep the default filenames: `file.<ext>` for code, `table.csv` / `table.md` for tables, `diagram.svg` / `diagram.png` / `diagram.mmd` for mermaid, `diagram.svg` / `diagram.png` / `diagram.puml` for PlantUML, and `model.scad` / `model.stl` / `model.3mf` for OpenSCAD.
+You can still use `download: true` (or omit it) to keep the default filenames: `file.<ext>` for code, `table.csv` / `table.md` for tables, `diagram.svg` / `diagram.png` / `diagram.mmd` for mermaid, `diagram.svg` / `diagram.png` / `diagram.puml` for PlantUML, `diagram.svg` / `diagram.png` / `diagram.json` for Vega, `diagram.svg` / `diagram.png` / `diagram.smi` for SMILES, and `model.scad` / `model.stl` / `model.3mf` for OpenSCAD. Extra engines registered via `plugins.diagrams` use `controls.diagrams[name]`.
 
 ### Remend Options
 

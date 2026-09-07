@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  createPlantUmlEngine,
   createPlantUmlPlugin,
   isPlantUmlLanguage,
   normalizePlantUmlSource,
   PLANTUML_LANGUAGES,
-  plantuml,
 } from "../index";
+
+const unusedEngine = createPlantUmlEngine(
+  () => Promise.reject(new Error("engine not loaded")),
+  () => Promise.resolve()
+);
+
+const plantuml = createPlantUmlPlugin({ engine: unusedEngine });
 
 describe("plantuml plugin", () => {
   it("has correct name, type, and languages", () => {
@@ -16,8 +23,8 @@ describe("plantuml plugin", () => {
   });
 
   it("createPlantUmlPlugin returns independent instances", () => {
-    const plugin1 = createPlantUmlPlugin();
-    const plugin2 = createPlantUmlPlugin();
+    const plugin1 = createPlantUmlPlugin({ engine: unusedEngine });
+    const plugin2 = createPlantUmlPlugin({ engine: unusedEngine });
     expect(plugin1).not.toBe(plugin2);
     expect(plugin1.getPlantUml).not.toBe(plugin2.getPlantUml);
   });

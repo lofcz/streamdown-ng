@@ -493,6 +493,170 @@ describe("Markdown Components", () => {
       });
     });
 
+    it("should render vega code as regular code block when plugin not provided", async () => {
+      const Code = components.code;
+      if (!Code) {
+        throw new Error("Code component not found");
+      }
+      const { container } = render(
+        <Code
+          className="language-vega-lite"
+          data-block="true"
+          node={null as any}
+        >
+          {'{"mark":"bar"}'}
+        </Code>
+      );
+
+      await waitFor(() => {
+        const codeBlock = container.querySelector(
+          '[data-streamdown="code-block"]'
+        );
+        expect(codeBlock).toBeTruthy();
+      });
+
+      expect(
+        container
+          .querySelector('[data-streamdown="code-block"]')
+          ?.getAttribute("data-language")
+      ).toBe("vega-lite");
+      expect(
+        container.querySelector('[data-streamdown="vega-block"]')
+      ).toBeNull();
+    });
+
+    it("should render vega block when plugin is provided", async () => {
+      const Code = components.code;
+      if (!Code) {
+        throw new Error("Code component not found");
+      }
+
+      const { PluginContext } = await import("../lib/plugin-context");
+      const { vi } = await import("vitest");
+
+      const mockVegaPlugin = {
+        name: "vega" as const,
+        type: "diagram" as const,
+        language: ["vega", "vega-lite", "vegalite"],
+        sourceExtension: "json",
+        getVega: vi.fn().mockReturnValue({
+          render: vi.fn().mockResolvedValue({ svg: "<svg>Chart</svg>" }),
+        }),
+      };
+
+      const { container } = render(
+        <PluginContext.Provider value={{ vega: mockVegaPlugin }}>
+          <Code
+            className="language-vega-lite"
+            data-block="true"
+            node={null as any}
+          >
+            {'{"mark":"bar"}'}
+          </Code>
+        </PluginContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(
+          container.querySelector('[data-streamdown="vega-block"]')
+        ).toBeTruthy();
+      });
+    });
+
+    it("should render a diagrams[] plugin by language", async () => {
+      const Code = components.code;
+      if (!Code) {
+        throw new Error("Code component not found");
+      }
+
+      const { PluginContext } = await import("../lib/plugin-context");
+      const { vi } = await import("vitest");
+
+      const mockD2Plugin = {
+        name: "d2",
+        type: "diagram" as const,
+        language: "d2",
+        sourceExtension: "d2",
+        render: vi.fn().mockResolvedValue({ svg: "<svg>d2</svg>" }),
+      };
+
+      const { container } = render(
+        <PluginContext.Provider value={{ diagrams: [mockD2Plugin] }}>
+          <Code className="language-d2" data-block="true" node={null as any}>
+            {"x -> y"}
+          </Code>
+        </PluginContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(
+          container.querySelector('[data-streamdown="d2-block"]')
+        ).toBeTruthy();
+      });
+    });
+
+    it("should render smiles code as regular code block when plugin not provided", async () => {
+      const Code = components.code;
+      if (!Code) {
+        throw new Error("Code component not found");
+      }
+      const { container } = render(
+        <Code className="language-smiles" data-block="true" node={null as any}>
+          {"CCO"}
+        </Code>
+      );
+
+      await waitFor(() => {
+        const codeBlock = container.querySelector(
+          '[data-streamdown="code-block"]'
+        );
+        expect(codeBlock).toBeTruthy();
+      });
+
+      expect(
+        container
+          .querySelector('[data-streamdown="code-block"]')
+          ?.getAttribute("data-language")
+      ).toBe("smiles");
+      expect(
+        container.querySelector('[data-streamdown="smiles-block"]')
+      ).toBeNull();
+    });
+
+    it("should render smiles block when plugin is provided", async () => {
+      const Code = components.code;
+      if (!Code) {
+        throw new Error("Code component not found");
+      }
+
+      const { PluginContext } = await import("../lib/plugin-context");
+      const { vi } = await import("vitest");
+
+      const mockSmilesPlugin = {
+        name: "smiles" as const,
+        type: "diagram" as const,
+        language: ["smiles", "smi"],
+        sourceExtension: "smi",
+        getSmiles: vi.fn().mockReturnValue({
+          render: vi.fn().mockResolvedValue({ svg: "<svg>Molecule</svg>" }),
+        }),
+      };
+
+      const { container } = render(
+        <PluginContext.Provider value={{ smiles: mockSmilesPlugin }}>
+          <Code className="language-smi" data-block="true" node={null as any}>
+            {"CCO"}
+          </Code>
+        </PluginContext.Provider>
+      );
+
+      await waitFor(() => {
+        expect(
+          container.querySelector('[data-streamdown="smiles-block"]')
+        ).toBeTruthy();
+      });
+    });
+
     it("should render openscad code as regular code block when plugin not provided", async () => {
       const Code = components.code;
       if (!Code) {

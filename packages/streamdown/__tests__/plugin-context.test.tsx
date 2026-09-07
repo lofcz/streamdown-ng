@@ -6,10 +6,13 @@ import {
   useCjkPlugin,
   useCodePlugin,
   useCustomRenderer,
+  useDiagramPlugin,
   useMathPlugin,
   useMermaidPlugin,
   usePlantUmlPlugin,
   usePlugins,
+  useSmilesPlugin,
+  useVegaPlugin,
 } from "../lib/plugin-context";
 
 describe("plugin-context hooks", () => {
@@ -82,6 +85,86 @@ describe("plugin-context hooks", () => {
         wrapper: wrapper({ plantuml: plantumlPlugin }),
       });
       expect(result.current).toBe(plantumlPlugin);
+    });
+  });
+
+  describe("useVegaPlugin", () => {
+    it("should return null when no plugins", () => {
+      const { result } = renderHook(() => useVegaPlugin(), {
+        wrapper: wrapper(null),
+      });
+      expect(result.current).toBeNull();
+    });
+
+    it("should return vega plugin when available", () => {
+      const vegaPlugin = { name: "vega" };
+      const { result } = renderHook(() => useVegaPlugin(), {
+        wrapper: wrapper({ vega: vegaPlugin }),
+      });
+      expect(result.current).toBe(vegaPlugin);
+    });
+  });
+
+  describe("useSmilesPlugin", () => {
+    it("should return null when no plugins", () => {
+      const { result } = renderHook(() => useSmilesPlugin(), {
+        wrapper: wrapper(null),
+      });
+      expect(result.current).toBeNull();
+    });
+
+    it("should return smiles plugin when available", () => {
+      const smilesPlugin = { name: "smiles" };
+      const { result } = renderHook(() => useSmilesPlugin(), {
+        wrapper: wrapper({ smiles: smilesPlugin }),
+      });
+      expect(result.current).toBe(smilesPlugin);
+    });
+  });
+
+  describe("useDiagramPlugin", () => {
+    it("should match a named mermaid plugin", () => {
+      const mermaidPlugin = {
+        name: "mermaid" as const,
+        type: "diagram" as const,
+        language: "mermaid",
+        getMermaid: () => ({
+          initialize: () => undefined,
+          render: () => Promise.resolve({ svg: "<svg/>" }),
+        }),
+      };
+      const { result } = renderHook(() => useDiagramPlugin("mermaid"), {
+        wrapper: wrapper({ mermaid: mermaidPlugin }),
+      });
+      expect(result.current?.name).toBe("mermaid");
+    });
+
+    it("should match a named smiles plugin", () => {
+      const smilesPlugin = {
+        name: "smiles" as const,
+        type: "diagram" as const,
+        language: ["smiles", "smi"],
+        getSmiles: () => ({
+          render: () => Promise.resolve({ svg: "<svg/>" }),
+        }),
+      };
+      const { result } = renderHook(() => useDiagramPlugin("smi"), {
+        wrapper: wrapper({ smiles: smilesPlugin }),
+      });
+      expect(result.current?.name).toBe("smiles");
+    });
+
+    it("should match an extra diagrams[] plugin", () => {
+      const d2 = {
+        name: "d2",
+        type: "diagram" as const,
+        language: "d2",
+        render: () => Promise.resolve({ svg: "<svg/>" }),
+      };
+      const { result } = renderHook(() => useDiagramPlugin("d2"), {
+        wrapper: wrapper({ diagrams: [d2] }),
+      });
+      expect(result.current?.name).toBe("d2");
     });
   });
 

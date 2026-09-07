@@ -22,8 +22,44 @@ export interface PlantUmlPlugin {
   type: "diagram";
 }
 
+/**
+ * Structural subset of `@plantuml/core/plantuml.js`. Compatible without a
+ * type dependency on that package in the main entry.
+ */
+export interface PlantUmlCore {
+  render(lines: string[], targetId: string, options?: { dark?: boolean }): void;
+  renderToString(
+    lines: string[],
+    onSuccess: (svg: string) => void,
+    onError: (message: string) => void
+  ): void;
+}
+
+/**
+ * Engine access, injected so `@plantuml/core` stays out of every consumer's
+ * module graph — it is only resolved once `render()` runs.
+ * Use the ready-made loader from `@lofcz/streamdown-plantuml/engine`.
+ */
+export interface PlantUmlEngine {
+  load(): Promise<PlantUmlCore>;
+  loadViz(): Promise<void>;
+}
+
+export function createPlantUmlEngine(
+  load: () => Promise<unknown>,
+  loadViz: PlantUmlEngine["loadViz"]
+): PlantUmlEngine {
+  return {
+    async load() {
+      return (await load()) as PlantUmlCore;
+    },
+    loadViz,
+  };
+}
+
 export interface PlantUmlPluginOptions {
   config?: PlantUmlConfig;
+  engine: PlantUmlEngine;
 }
 
 const START_DIRECTIVE = /^@start\w+/im;
@@ -48,109 +84,40 @@ export function isPlantUmlLanguage(language: string): boolean {
   return (PLANTUML_LANGUAGES as readonly string[]).includes(language);
 }
 
-type VizGlobal = typeof globalThis & { Viz?: unknown };
+interface Runtime {
+  corePromise: Promise<PlantUmlCore> | null;
+  engine: PlantUmlEngine;
+  queue: Promise<unknown>;
+  vizPromise: Promise<void> | null;
+}
 
-let vizReady: Promise<void> | null = null;
-let enginePromise: Promise<typeof import("@plantuml/core/plantuml.js")> | null =
-  null;
-let renderQueue: Promise<unknown> = Promise.resolve();
+const runtimes = new WeakMap<PlantUmlEngine, Runtime>();
 
-function enqueue<T>(work: () => Promise<T>): Promise<T> {
-  const next = renderQueue.then(work, work);
-  renderQueue = next.then(
+function getRuntime(engine: PlantUmlEngine): Runtime {
+  let runtime = runtimes.get(engine);
+  if (!runtime) {
+    runtime = {
+      engine,
+      corePromise: null,
+      vizPromise: null,
+      queue: Promise.resolve(),
+    };
+    runtimes.set(engine, runtime);
+  }
+  return runtime;
+}
+
+function enqueue<T>(runtime: Runtime, work: () => Promise<T>): Promise<T> {
+  const next = runtime.queue.then(work, work);
+  runtime.queue = next.then(
     () => undefined,
     () => undefined
   );
   return next;
 }
 
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(
-      'script[data-plantuml-viz="true"]'
-    );
-    if (existing) {
-      if ((globalThis as VizGlobal).Viz) {
-        resolve();
-        return;
-      }
-      existing.addEventListener("load", () => resolve(), { once: true });
-      existing.addEventListener(
-        "error",
-        () =>
-          reject(new Error("Failed to load PlantUML Graphviz (viz-global.js)")),
-        { once: true }
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = src;
-    script.async = true;
-    script.dataset.plantumlViz = "true";
-    script.onload = () => resolve();
-    script.onerror = () =>
-      reject(new Error("Failed to load PlantUML Graphviz (viz-global.js)"));
-    document.head.appendChild(script);
-  });
-}
-
-async function ensureViz(): Promise<void> {
-  const g = globalThis as VizGlobal;
-  if (g.Viz) {
-    return;
-  }
-  if (vizReady) {
-    return await vizReady;
-  }
-
-  vizReady = (async () => {
-    if (typeof document === "undefined") {
-      throw new Error("PlantUML rendering requires a browser");
-    }
-
-    try {
-      const vizUrlMod = await import(
-        /* webpackChunkName: "plantuml-viz" */
-        "@plantuml/core/viz-global.js?url"
-      );
-      if (typeof vizUrlMod.default === "string") {
-        await loadScript(vizUrlMod.default);
-        if (g.Viz) {
-          return;
-        }
-      }
-    } catch {
-      // Bundler may not support `?url` — fall through to a module import.
-    }
-
-    const vizMod = await import(
-      /* webpackChunkName: "plantuml-viz" */
-      "@plantuml/core/viz-global.js"
-    );
-    if (!g.Viz) {
-      g.Viz = vizMod.default ?? vizMod;
-    }
-  })().catch((error) => {
-    vizReady = null;
-    throw error;
-  });
-
-  return await vizReady;
-}
-
-async function loadEngine(): Promise<
-  typeof import("@plantuml/core/plantuml.js")
-> {
-  enginePromise ??= import(
-    /* webpackChunkName: "plantuml-engine" */
-    "@plantuml/core/plantuml.js"
-  );
-  return await enginePromise;
-}
-
 function renderViaDom(
-  render: typeof import("@plantuml/core/plantuml.js")["render"],
+  render: PlantUmlCore["render"],
   lines: string[],
   dark: boolean
 ): Promise<string> {
@@ -202,7 +169,7 @@ function renderViaDom(
 }
 
 function renderViaString(
-  renderToString: typeof import("@plantuml/core/plantuml.js")["renderToString"],
+  renderToString: PlantUmlCore["renderToString"],
   lines: string[]
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -211,11 +178,21 @@ function renderViaString(
 }
 
 async function renderPlantUml(
+  engine: PlantUmlEngine,
   source: string,
   options: PlantUmlConfig = {}
 ): Promise<{ svg: string }> {
-  await ensureViz();
-  const engine = await loadEngine();
+  const runtime = getRuntime(engine);
+  runtime.vizPromise ??= runtime.engine.loadViz().catch((error) => {
+    runtime.vizPromise = null;
+    throw error;
+  });
+  runtime.corePromise ??= runtime.engine.load().catch((error) => {
+    runtime.corePromise = null;
+    throw error;
+  });
+  await runtime.vizPromise;
+  const core = await runtime.corePromise;
   const normalized = normalizePlantUmlSource(source);
   if (!normalized) {
     throw new Error("Empty PlantUML source");
@@ -223,15 +200,15 @@ async function renderPlantUml(
   const lines = normalized.split(LINE_SPLIT);
   const dark = options.dark === true;
 
-  const svg = await enqueue(async () => {
+  const svg = await enqueue(runtime, async () => {
     if (dark) {
-      return renderViaDom(engine.render, lines, true);
+      return renderViaDom(core.render, lines, true);
     }
     try {
-      return await renderViaString(engine.renderToString, lines);
+      return await renderViaString(core.renderToString, lines);
     } catch (stringError) {
       try {
-        return await renderViaDom(engine.render, lines, false);
+        return await renderViaDom(core.render, lines, false);
       } catch {
         throw stringError;
       }
@@ -246,11 +223,14 @@ async function renderPlantUml(
 }
 
 export function createPlantUmlPlugin(
-  options: PlantUmlPluginOptions = {}
+  options: PlantUmlPluginOptions
 ): PlantUmlPlugin {
   const plantUmlInstance: PlantUmlInstance = {
     async render(source: string, config?: PlantUmlConfig) {
-      return await renderPlantUml(source, { ...options.config, ...config });
+      return await renderPlantUml(options.engine, source, {
+        ...options.config,
+        ...config,
+      });
     },
   };
 
@@ -269,5 +249,3 @@ export function createPlantUmlPlugin(
     },
   };
 }
-
-export const plantuml = createPlantUmlPlugin();

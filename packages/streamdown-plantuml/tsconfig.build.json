@@ -6,7 +6,7 @@
     "outDir": "./dist",
     "rootDir": "."
   },
-  "include": ["index.ts", "plantuml-modules.d.ts"],
+  "include": ["index.ts", "engine.ts", "plantuml-modules.d.ts"],
   "exclude": [
     "node_modules",
     "dist",

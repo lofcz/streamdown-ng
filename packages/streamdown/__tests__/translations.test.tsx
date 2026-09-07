@@ -25,6 +25,9 @@ describe("defaultTranslations", () => {
     expect(defaultTranslations.downloadFile).toBe("Download file");
     expect(defaultTranslations.mermaidChart).toBe("Mermaid chart");
     expect(defaultTranslations.plantumlChart).toBe("PlantUML chart");
+    expect(defaultTranslations.vegaChart).toBe("Vega chart");
+    expect(defaultTranslations.smilesChart).toBe("Chemical structure");
+    expect(defaultTranslations.diagramChart).toBe("Diagram");
     expect(defaultTranslations.openscadModel).toBe("OpenSCAD model");
     expect(defaultTranslations.downloadDiagram).toBe("Download diagram");
     expect(defaultTranslations.downloadDiagramAsSvg).toBe(
@@ -45,6 +48,10 @@ describe("defaultTranslations", () => {
       "Download diagram as PlantUML"
     );
     expect(defaultTranslations.plantumlFormatPuml).toBe("PUML");
+    expect(defaultTranslations.smilesFormatSmi).toBe("SMI");
+    expect(defaultTranslations.downloadDiagramAsSmi).toBe(
+      "Download diagram as SMILES"
+    );
     expect(defaultTranslations.copyTable).toBe("Copy table");
     expect(defaultTranslations.copyTableAsMarkdown).toBe(
       "Copy table as Markdown"

@@ -1,45 +1,14 @@
-import { useContext, useEffect, useState } from "react";
-import { useDeferredRender } from "../../hooks/use-deferred-render";
-import { StreamdownContext } from "../../index";
+import { Diagram } from "../diagram";
+import { toSvgDiagramPlugin } from "../diagram/adapter";
 import { useMermaidPlugin } from "../plugin-context";
 import type { MermaidConfig } from "../plugin-types";
-import { useCn } from "../prefix-context";
-import { useTranslations } from "../translations-context";
-import { autoFixMermaidChart } from "./auto-fix";
-import { PanZoom } from "./pan-zoom";
-import { getMermaidSvgSize, normalizeMermaidInlineSvg } from "./utils";
-
-/**
- * Render the chart, falling back to a deterministic label-quoting repair
- * pass (see auto-fix.ts) when the original source fails. The ORIGINAL error
- * is rethrown when nothing is fixable or the fixed source still fails, so
- * behaviour for truly broken charts is unchanged.
- */
-const renderChartWithAutoFix = async (
-  mermaid: { render: (id: string, source: string) => Promise<{ svg: string }> },
-  uniqueId: string,
-  chart: string
-): Promise<{ svg: string }> => {
-  try {
-    return await mermaid.render(uniqueId, chart);
-  } catch (renderError) {
-    const fixedChart = autoFixMermaidChart(chart);
-    if (!fixedChart) {
-      throw renderError;
-    }
-    try {
-      return await mermaid.render(`${uniqueId}-autofix`, fixedChart);
-    } catch {
-      throw renderError;
-    }
-  }
-};
 
 interface MermaidProps {
   chart: string;
   className?: string;
   config?: MermaidConfig;
   fullscreen?: boolean;
+  language?: string;
   showControls?: boolean;
 }
 
@@ -48,186 +17,22 @@ export const Mermaid = ({
   className,
   config,
   fullscreen = false,
+  language,
   showControls = true,
 }: MermaidProps) => {
-  const cn = useCn();
-  const t = useTranslations();
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [svgContent, setSvgContent] = useState<string>("");
-  const [svgSize, setSvgSize] = useState<{
-    height: number;
-    width: number;
-  } | null>(null);
-  const [lastValidSvg, setLastValidSvg] = useState<string>("");
-  const [retryCount, setRetryCount] = useState(0);
-  const { mermaid: mermaidContext } = useContext(StreamdownContext);
   const mermaidPlugin = useMermaidPlugin();
-  const ErrorComponent = mermaidContext?.errorComponent;
-
-  // Use deferred render hook for optimal performance
-  const { shouldRender, containerRef } = useDeferredRender({
-    immediate: fullscreen,
-  });
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: "Required for Mermaid"
-  useEffect(() => {
-    // Only render when shouldRender is true
-    if (!shouldRender) {
-      return;
-    }
-
-    // If no mermaid plugin, show error
-    if (!mermaidPlugin) {
-      setError(t.mermaidPluginMissing);
-      return;
-    }
-
-    const renderChart = async () => {
-      try {
-        setError(null);
-        setIsLoading(true);
-
-        // Get mermaid instance from plugin
-        const mermaid = mermaidPlugin.getMermaid(config);
-
-        // Use a stable ID based on chart content hash and timestamp to ensure uniqueness
-        const chartHash = chart.split("").reduce((acc, char) => {
-          // biome-ignore lint/suspicious/noBitwiseOperators: "Required for Mermaid"
-          return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
-        }, 0);
-        const uniqueId = `mermaid-${Math.abs(chartHash)}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-        const { svg } = await renderChartWithAutoFix(mermaid, uniqueId, chart);
-        const size = getMermaidSvgSize(svg);
-        const normalizedSvg = fullscreen ? svg : normalizeMermaidInlineSvg(svg);
-
-        // Update both current and last valid SVG
-        setSvgContent(normalizedSvg);
-        setSvgSize(size);
-        setLastValidSvg(normalizedSvg);
-      } catch (err) {
-        // Silently fail and keep the last valid SVG
-        // Don't update svgContent here - just keep what we have
-
-        // Only set error if we don't have any valid SVG
-        if (!(lastValidSvg || svgContent)) {
-          const errorMessage =
-            err instanceof Error ? err.message : t.mermaidRenderFailed;
-          setError(errorMessage);
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    renderChart();
-  }, [chart, config, retryCount, shouldRender, mermaidPlugin]);
-
-  // Show placeholder when not scheduled to render
-  if (!(shouldRender || svgContent || lastValidSvg)) {
-    return (
-      <div className={cn("my-4 min-h-[200px]", className)} ref={containerRef} />
-    );
-  }
-
-  if (isLoading && !svgContent && !lastValidSvg) {
-    return (
-      <div
-        className={cn("my-4 flex justify-center p-4", className)}
-        ref={containerRef}
-      >
-        <div
-          className={cn("flex items-center space-x-2 text-muted-foreground")}
-        >
-          <div
-            className={cn(
-              "h-4 w-4 animate-spin rounded-full border-current border-b-2"
-            )}
-          />
-          <span className={cn("text-sm")}>{t.diagramLoading}</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Only show error if we have no valid SVG to display
-  if (error && !svgContent && !lastValidSvg) {
-    const retry = () => setRetryCount((count) => count + 1);
-
-    // Use custom error component if provided
-    if (ErrorComponent) {
-      return (
-        <div ref={containerRef}>
-          <ErrorComponent chart={chart} error={error} retry={retry} />
-        </div>
-      );
-    }
-
-    // Default error display
-    return (
-      <div
-        className={cn("rounded-md bg-red-50 p-4", className)}
-        ref={containerRef}
-      >
-        <p className={cn("font-mono text-red-700 text-sm")}>
-          {t.mermaidErrorLabel}: {error}
-        </p>
-        <details className={cn("mt-2")}>
-          <summary className={cn("cursor-pointer text-red-600 text-xs")}>
-            {t.showCode}
-          </summary>
-          <pre
-            className={cn(
-              "mt-2 overflow-x-auto rounded bg-red-100 p-2 text-red-800 text-xs"
-            )}
-          >
-            {chart}
-          </pre>
-        </details>
-      </div>
-    );
-  }
-
-  // Always render the SVG if we have content (either current or last valid)
-  const displaySvg = svgContent || lastValidSvg;
+  const plugin = mermaidPlugin ? toSvgDiagramPlugin(mermaidPlugin) : null;
 
   return (
-    <div
-      className={cn(
-        fullscreen ? "size-full" : "max-h-[min(70vh,40rem)] w-full",
-        className
-      )}
-      data-streamdown="mermaid"
-      ref={containerRef}
-    >
-      <PanZoom
-        className={cn(
-          fullscreen
-            ? "size-full overflow-hidden"
-            : "max-h-[min(70vh,40rem)] overflow-hidden",
-          className
-        )}
-        contentSize={svgSize}
-        fitKey={chart}
-        fullscreen={fullscreen}
-        isAutoFit={true}
-        maxZoom={3}
-        minZoom={0.1}
-        showControls={showControls}
-        zoomStep={0.1}
-      >
-        <div
-          aria-label={t.mermaidChart}
-          className={cn(
-            "flex justify-center",
-            fullscreen ? "size-full items-center" : null
-          )}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: "Required for Mermaid"
-          dangerouslySetInnerHTML={{ __html: displaySvg }}
-          role="img"
-        />
-      </PanZoom>
-    </div>
+    <Diagram
+      chart={chart}
+      className={className}
+      config={config}
+      fallbackName="mermaid"
+      fullscreen={fullscreen}
+      language={language}
+      plugin={plugin}
+      showControls={showControls}
+    />
   );
 };

@@ -21,23 +21,25 @@ import { CodeBlockCopyButton } from "./code-block/copy-button";
 import { CodeBlockDownloadButton } from "./code-block/download-button";
 import { CodeBlockSkeleton } from "./code-block/skeleton";
 import { getCopyCallbacks } from "./controls";
+import { getDiagramOptions } from "./diagram/context";
+import {
+  shouldShowDiagramControl,
+  shouldShowDiagramControls,
+} from "./diagram/controls";
+import { DiagramDownloadDropdown } from "./diagram/download-button";
+import { DiagramFullscreenButton } from "./diagram/fullscreen-button";
 import { ImageComponent } from "./image";
 import { LinkSafetyModal } from "./link-modal";
 import type { ExtraProps, Options } from "./markdown";
 import { Markdown } from "./markdown";
-import { MermaidDownloadDropdown } from "./mermaid/download-button";
-import { MermaidFullscreenButton } from "./mermaid/fullscreen-button";
 import { OpenScadDownloadDropdown } from "./openscad/download-button";
 import { OpenScadFullscreenButton } from "./openscad/fullscreen-button";
-import { PlantUmlDownloadDropdown } from "./plantuml/download-button";
-import { PlantUmlFullscreenButton } from "./plantuml/fullscreen-button";
 import {
   useCustomRenderer,
-  useMermaidPlugin,
+  useDiagramPlugin,
   useOpenScadPlugin,
-  usePlantUmlPlugin,
 } from "./plugin-context";
-import type { OpenScadPlugin, PlantUmlPlugin } from "./plugin-types";
+import type { OpenScadPlugin } from "./plugin-types";
 import { useCn } from "./prefix-context";
 // BundledLanguage type removed - we now support any language string
 import {
@@ -54,12 +56,8 @@ const START_LINE_PATTERN = /startLine=(\d+)/;
 const NO_LINE_NUMBERS_PATTERN = /\bnoLineNumbers\b/;
 
 // Lazy load heavy components
-const Mermaid = lazy(() =>
-  import("./mermaid").then((mod) => ({ default: mod.Mermaid }))
-);
-
-const PlantUml = lazy(() =>
-  import("./plantuml").then((mod) => ({ default: mod.PlantUml }))
+const Diagram = lazy(() =>
+  import("./diagram").then((mod) => ({ default: mod.Diagram }))
 );
 
 const OpenScad = lazy(() =>
@@ -164,12 +162,6 @@ const matchesPluginLanguage = (
     ? pluginLanguage.includes(language)
     : pluginLanguage === language;
 
-const isPlantUmlBlock = (
-  language: string,
-  plugin: PlantUmlPlugin | null
-): plugin is PlantUmlPlugin =>
-  Boolean(plugin && matchesPluginLanguage(language, plugin.language));
-
 const isOpenScadBlock = (
   language: string,
   plugin: OpenScadPlugin | null
@@ -178,7 +170,7 @@ const isOpenScadBlock = (
 
 const shouldShowControls = (
   config: ControlsConfig,
-  type: "table" | "code" | "mermaid" | "plantuml" | "openscad"
+  type: "table" | "code" | "openscad"
 ) => {
   if (typeof config === "boolean") {
     return config;
@@ -227,48 +219,6 @@ const shouldShowCodeControl = (
   }
 
   return codeConfig[controlType] !== false;
-};
-
-const shouldShowMermaidControl = (
-  config: ControlsConfig,
-  controlType: "download" | "copy" | "fullscreen" | "panZoom"
-): boolean => {
-  if (typeof config === "boolean") {
-    return config;
-  }
-
-  const mermaidConfig = config.mermaid;
-
-  if (mermaidConfig === false) {
-    return false;
-  }
-
-  if (mermaidConfig === true || mermaidConfig === undefined) {
-    return true;
-  }
-
-  return mermaidConfig[controlType] !== false;
-};
-
-const shouldShowPlantUmlControl = (
-  config: ControlsConfig,
-  controlType: "download" | "copy" | "fullscreen" | "panZoom"
-): boolean => {
-  if (typeof config === "boolean") {
-    return config;
-  }
-
-  const plantumlConfig = config.plantuml;
-
-  if (plantumlConfig === false) {
-    return false;
-  }
-
-  if (plantumlConfig === true || plantumlConfig === undefined) {
-    return true;
-  }
-
-  return plantumlConfig[controlType] !== false;
 };
 
 const shouldShowOpenScadControl = (
@@ -1126,21 +1076,18 @@ const CodeComponent = ({
   // A code element is block-level when it was inside a <pre> element.
   // The custom pre component marks its children with data-block.
   const inline = !("data-block" in props);
+  const streamdownContext = useContext(StreamdownContext);
   const {
-    mermaid: mermaidContext,
-    plantuml: plantumlContext,
     openscad: openscadContext,
     controls: controlsConfig,
     lineNumbers: contextLineNumbers,
-  } = useContext(StreamdownContext);
-  const mermaidPlugin = useMermaidPlugin();
-  const plantumlPlugin = usePlantUmlPlugin();
+  } = streamdownContext;
+  const match = className?.match(LANGUAGE_REGEX);
+  const language = match?.at(1) ?? "";
+  const diagramPlugin = useDiagramPlugin(language);
   const openscadPlugin = useOpenScadPlugin();
   const isBlockIncomplete = useIsCodeFenceIncomplete();
   const t = useTranslations();
-
-  const match = className?.match(LANGUAGE_REGEX);
-  const language = match?.at(1) ?? "";
   const customRenderer = useCustomRenderer(language);
 
   if (inline) {
@@ -1192,21 +1139,32 @@ const CodeComponent = ({
     );
   }
 
-  if (language === "mermaid" && mermaidPlugin) {
-    const showMermaidControls = shouldShowControls(controlsConfig, "mermaid");
-    const showDownload = shouldShowMermaidControl(controlsConfig, "download");
-    const showCopy = shouldShowMermaidControl(controlsConfig, "copy");
-    const showFullscreen = shouldShowMermaidControl(
+  if (diagramPlugin) {
+    const diagramName = diagramPlugin.name;
+    const diagramOptions = getDiagramOptions(streamdownContext, diagramName);
+    const showDownload = shouldShowDiagramControl(
       controlsConfig,
+      diagramName,
+      "download"
+    );
+    const showCopy = shouldShowDiagramControl(
+      controlsConfig,
+      diagramName,
+      "copy"
+    );
+    const showFullscreen = shouldShowDiagramControl(
+      controlsConfig,
+      diagramName,
       "fullscreen"
     );
-    const showPanZoomControls = shouldShowMermaidControl(
+    const showPanZoomControls = shouldShowDiagramControl(
       controlsConfig,
+      diagramName,
       "panZoom"
     );
-
-    const shouldShowMermaidControls =
-      showMermaidControls && (showDownload || showCopy || showFullscreen);
+    const showDiagramControls =
+      shouldShowDiagramControls(controlsConfig, diagramName) &&
+      (showDownload || showCopy || showFullscreen);
 
     return (
       <Suspense fallback={<CodeBlockSkeleton />}>
@@ -1216,16 +1174,16 @@ const CodeComponent = ({
             className
           )}
           data-incomplete={isBlockIncomplete || undefined}
-          data-streamdown="mermaid-block"
+          data-streamdown={`${diagramName}-block`}
         >
           <div
             className={cn(
               "flex h-8 items-center text-muted-foreground text-xs"
             )}
           >
-            <span className={cn("ml-1 font-mono lowercase")}>mermaid</span>
+            <span className={cn("ml-1 font-mono lowercase")}>{language}</span>
           </div>
-          {shouldShowMermaidControls ? (
+          {showDiagramControls ? (
             <div
               className={cn(
                 "pointer-events-none sticky top-2 z-10 -mt-10 flex h-8 items-center justify-end"
@@ -1235,25 +1193,33 @@ const CodeComponent = ({
                 className={cn(
                   "pointer-events-auto flex shrink-0 items-center gap-2 rounded-md border border-sidebar bg-sidebar/80 px-1.5 py-1 supports-[backdrop-filter]:bg-sidebar/70 supports-[backdrop-filter]:backdrop-blur"
                 )}
-                data-streamdown="mermaid-block-actions"
+                data-streamdown={`${diagramName}-block-actions`}
               >
                 {showDownload ? (
-                  <MermaidDownloadDropdown
+                  <DiagramDownloadDropdown
                     chart={code}
-                    config={mermaidContext?.config}
+                    config={diagramOptions?.config}
+                    language={language}
+                    name={diagramName}
+                    plugin={diagramPlugin}
+                    sourceExtension={diagramPlugin.sourceExtension}
                   />
                 ) : null}
                 {showCopy ? (
                   <CodeBlockCopyButton
                     code={code}
                     label={t.copyDiagram}
-                    {...getCopyCallbacks(controlsConfig, "mermaid")}
+                    {...getCopyCallbacks(controlsConfig, diagramName)}
                   />
                 ) : null}
                 {showFullscreen ? (
-                  <MermaidFullscreenButton
+                  <DiagramFullscreenButton
                     chart={code}
-                    config={mermaidContext?.config}
+                    config={diagramOptions?.config}
+                    language={language}
+                    name={diagramName}
+                    plugin={diagramPlugin}
+                    sourceExtension={diagramPlugin.sourceExtension}
                   />
                 ) : null}
               </div>
@@ -1264,88 +1230,12 @@ const CodeComponent = ({
               "overflow-hidden rounded-md border border-border bg-background"
             )}
           >
-            <Mermaid
+            <Diagram
               chart={code}
-              config={mermaidContext?.config}
-              showControls={showPanZoomControls}
-            />
-          </div>
-        </div>
-      </Suspense>
-    );
-  }
-
-  if (isPlantUmlBlock(language, plantumlPlugin)) {
-    const showPlantUmlControls = shouldShowControls(controlsConfig, "plantuml");
-    const showDownload = shouldShowPlantUmlControl(controlsConfig, "download");
-    const showCopy = shouldShowPlantUmlControl(controlsConfig, "copy");
-    const showFullscreen = shouldShowPlantUmlControl(
-      controlsConfig,
-      "fullscreen"
-    );
-    const showPanZoomControls = shouldShowPlantUmlControl(
-      controlsConfig,
-      "panZoom"
-    );
-
-    const shouldShowPlantUmlControls =
-      showPlantUmlControls && (showDownload || showCopy || showFullscreen);
-
-    return (
-      <Suspense fallback={<CodeBlockSkeleton />}>
-        <div
-          className={cn(
-            "group relative my-4 flex w-full flex-col gap-2 rounded-xl border border-border bg-sidebar p-2",
-            className
-          )}
-          data-incomplete={isBlockIncomplete || undefined}
-          data-streamdown="plantuml-block"
-        >
-          <div
-            className={cn(
-              "flex h-8 items-center text-muted-foreground text-xs"
-            )}
-          >
-            <span className={cn("ml-1 font-mono lowercase")}>{language}</span>
-          </div>
-          {shouldShowPlantUmlControls ? (
-            <div
-              className={cn(
-                "pointer-events-none sticky top-2 z-10 -mt-10 flex h-8 items-center justify-end"
-              )}
-            >
-              <div
-                className={cn(
-                  "pointer-events-auto flex shrink-0 items-center gap-2 rounded-md border border-sidebar bg-sidebar/80 px-1.5 py-1 supports-[backdrop-filter]:bg-sidebar/70 supports-[backdrop-filter]:backdrop-blur"
-                )}
-                data-streamdown="plantuml-block-actions"
-              >
-                {showDownload ? (
-                  <PlantUmlDownloadDropdown
-                    chart={code}
-                    config={plantumlContext?.config}
-                  />
-                ) : null}
-                {showCopy ? (
-                  <CodeBlockCopyButton
-                    code={code}
-                    label={t.copyDiagram}
-                    {...getCopyCallbacks(controlsConfig, "plantuml")}
-                  />
-                ) : null}
-                {showFullscreen ? (
-                  <PlantUmlFullscreenButton
-                    chart={code}
-                    config={plantumlContext?.config}
-                  />
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-          <div className={cn("rounded-md border border-border bg-background")}>
-            <PlantUml
-              chart={code}
-              config={plantumlContext?.config}
+              config={diagramOptions?.config}
+              fallbackName={diagramName}
+              language={language}
+              plugin={diagramPlugin}
               showControls={showPanZoomControls}
             />
           </div>

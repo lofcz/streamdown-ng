@@ -1,0 +1,100 @@
+---
+title: "@streamdown/vega"
+description: Render Vega and Vega-Lite charts from fenced JSON specs.
+type: reference
+summary: Client-side Vega / Vega-Lite rendering on the generic SVG diagram path, with the same interactive controls as Mermaid and PlantUML.
+prerequisites:
+  - /docs/plugins
+related:
+  - /docs/code-blocks
+  - /docs/plugins/mermaid
+  - /docs/plugins/plantuml
+---
+
+The `@streamdown/vega` plugin renders [Vega](https://vega.github.io/vega/) and [Vega-Lite](https://vega.github.io/vega-lite/) charts in the browser. The runtime and compiler stay out of your bundler graph until you import the engine entry, and they only run when a `vega`, `vega-lite`, or `vegalite` fence is actually rendered.
+
+- Interactive controls (fullscreen, download SVG/PNG/JSON, copy, pan/zoom)
+- Auto-detects Vega vs Vega-Lite from the fence language and `$schema`
+- Custom error handling with retry
+
+## Install
+
+```package-install
+npm install @streamdown/vega vega vega-lite
+```
+
+`vega` and `vega-lite` are optional peer dependencies: importing the engine entry is what pulls them into your bundler's module graph, so apps that don't use the plugin never bundle them.
+
+## Usage
+
+```tsx title="chat.tsx" lineNumbers
+import { createVegaPlugin } from '@streamdown/vega';
+import { engine } from '@streamdown/vega/engine';
+
+const vega = createVegaPlugin({ engine });
+
+<Streamdown plugins={{ vega }}>
+  {markdown}
+</Streamdown>
+```
+
+Without the plugin, Vega code blocks render as plain code.
+
+## Language identifiers
+
+````markdown
+```vega-lite
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "data": {"values": [{"a": "A", "b": 28}, {"a": "B", "b": 55}]},
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "a", "type": "nominal"},
+    "y": {"field": "b", "type": "quantitative"}
+  }
+}
+```
+````
+
+`vega-lite` and `vegalite` compile through Vega-Lite. `vega` is treated as a Vega spec unless `$schema` points at Vega-Lite or the object has a `mark` field.
+
+## Options
+
+Pass `errorComponent` or `config` on the `vega` prop (same shape as Mermaid):
+
+```tsx
+<Streamdown
+  plugins={{ vega }}
+  vega={{
+    config: { mode: "auto" },
+    errorComponent: MyVegaError,
+  }}
+>
+  {markdown}
+</Streamdown>
+```
+
+- `config.mode` — `"auto"` (default), `"vega"`, or `"vega-lite"`
+- `controls.vega` — toggle download, copy, fullscreen, and pan-zoom
+
+## Extra diagram engines
+
+Mermaid, PlantUML, and Vega share one SVG diagram renderer. Additional engines can be registered without a core change:
+
+```tsx
+<Streamdown
+  plugins={{
+    mermaid,
+    vega,
+    diagrams: [graphviz],
+  }}
+  diagrams={{
+    graphviz: { errorComponent: MyGraphvizError },
+  }}
+  controls={{
+    diagrams: { graphviz: { panZoom: false } },
+  }}
+>
+```
+
+Each extra plugin needs `type: "diagram"`, a `name`, `language`, and `render(source) => Promise<{ svg }>`.

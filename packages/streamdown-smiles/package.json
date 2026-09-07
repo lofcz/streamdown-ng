@@ -1,0 +1,55 @@
+{
+  "name": "@lofcz/streamdown-smiles",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./engine": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest --coverage run"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "smiles-drawer": "^2.4.1"
+  },
+  "peerDependenciesMeta": {
+    "smiles-drawer": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^27.3.0",
+    "smiles-drawer": "^2.4.1",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "author": "Hayden Bleasel <hayden.bleasel@vercel.com>",
+  "license": "Apache-2.0",
+  "description": "SMILES chemical structure plugin for Streamdown",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lofcz/streamdown-ng.git",
+    "directory": "packages/streamdown-smiles"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

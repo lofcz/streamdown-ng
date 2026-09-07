@@ -1,7 +1,7 @@
 /**
  * Complete list of Tailwind CSS utility classes used by streamdown and its
  * official plugins (@streamdown/code, @streamdown/math, @streamdown/mermaid,
- * @streamdown/plantuml, @streamdown/cjk).
+ * @streamdown/plantuml, @streamdown/vega, @streamdown/smiles, @streamdown/cjk).
  *
  * Use this list to configure Tailwind v4's `@source inline()` directive when
  * you need a custom prefix.  See the README for details.
@@ -112,6 +112,7 @@ export const STREAMDOWN_CLASSES: readonly string[] = [
   "list-inside",
   "lowercase",
   "max-h-32",
+  "max-h-[min(70vh,40rem)]",
   "max-w-full",
   "max-w-md",
   "mb-2",

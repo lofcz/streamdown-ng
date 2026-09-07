@@ -1,14 +1,9 @@
-import { type ComponentProps, useContext, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { StreamdownContext } from "../../index";
-import { useIcons } from "../icon-context";
+import type { ComponentProps } from "react";
+import { toSvgDiagramPlugin } from "../diagram/adapter";
+import { DiagramFullscreenButton } from "../diagram/fullscreen-button";
+import { useMermaidPlugin } from "../plugin-context";
 import type { MermaidConfig } from "../plugin-types";
-import { resolvePortalTarget } from "../portal";
-import { useCn } from "../prefix-context";
-import { lockBodyScroll, unlockBodyScroll } from "../scroll-lock";
-import { useTranslations } from "../translations-context";
 import { Mermaid } from ".";
-import { MermaidDownloadDropdown } from "./download-button";
 
 type MermaidFullscreenButtonProps = ComponentProps<"button"> & {
   chart: string;
@@ -25,152 +20,21 @@ export const MermaidFullscreenButton = ({
   className,
   ...props
 }: MermaidFullscreenButtonProps) => {
-  const { Maximize2Icon, XIcon } = useIcons();
-  const cn = useCn();
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const {
-    isAnimating,
-    controls: controlsConfig,
-    portal,
-  } = useContext(StreamdownContext);
-  const t = useTranslations();
-  const showPanZoomControls = (() => {
-    if (typeof controlsConfig === "boolean") {
-      return controlsConfig;
-    }
-    const mermaidCtl = controlsConfig.mermaid;
-    if (mermaidCtl === false) {
-      return false;
-    }
-    if (mermaidCtl === true || mermaidCtl === undefined) {
-      return true;
-    }
-    return mermaidCtl.panZoom !== false;
-  })();
-  const showDownload = (() => {
-    if (typeof controlsConfig === "boolean") {
-      return controlsConfig;
-    }
-    const mermaidCtl = controlsConfig.mermaid;
-    if (mermaidCtl === false) {
-      return false;
-    }
-    if (mermaidCtl === true || mermaidCtl === undefined) {
-      return true;
-    }
-    return mermaidCtl.download !== false;
-  })();
-
-  const handleToggle = () => {
-    setIsFullscreen(!isFullscreen);
-  };
-
-  // Manage scroll lock and keyboard events
-  useEffect(() => {
-    if (isFullscreen) {
-      lockBodyScroll();
-
-      const handleEsc = (e: KeyboardEvent) => {
-        if (e.key === "Escape") {
-          setIsFullscreen(false);
-        }
-      };
-
-      document.addEventListener("keydown", handleEsc);
-      return () => {
-        document.removeEventListener("keydown", handleEsc);
-        unlockBodyScroll();
-      };
-    }
-  }, [isFullscreen]);
-
-  // Handle callbacks separately to avoid scroll lock flickering
-  useEffect(() => {
-    if (isFullscreen) {
-      onFullscreen?.();
-    } else if (onExit) {
-      onExit();
-    }
-  }, [isFullscreen, onFullscreen, onExit]);
+  const mermaidPlugin = useMermaidPlugin();
+  const plugin = mermaidPlugin ? toSvgDiagramPlugin(mermaidPlugin) : null;
 
   return (
-    <>
-      <button
-        className={cn(
-          "cursor-pointer p-1 text-muted-foreground transition-all hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50",
-          className
-        )}
-        disabled={isAnimating}
-        onClick={handleToggle}
-        title={t.viewFullscreen}
-        type="button"
-        {...props}
-        aria-label={t.viewFullscreen}
-      >
-        <Maximize2Icon aria-hidden="true" size={14} />
-      </button>
-
-      {isFullscreen
-        ? createPortal(
-            // biome-ignore lint/a11y/noNoninteractiveElementInteractions: "dialog overlay needs click-to-dismiss"
-            <div
-              aria-label={t.viewFullscreen}
-              aria-modal="true"
-              className={cn(
-                "fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm"
-              )}
-              data-streamdown="mermaid-fullscreen"
-              onClick={handleToggle}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  handleToggle();
-                }
-              }}
-              role="dialog"
-            >
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: "div with role=presentation is used for event propagation control" */}
-              <div
-                className={cn(
-                  "absolute top-4 right-4 z-10 flex items-center gap-1"
-                )}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-                role="presentation"
-              >
-                {showDownload ? (
-                  <MermaidDownloadDropdown chart={chart} config={config} />
-                ) : null}
-                <button
-                  aria-label={t.exitFullscreen}
-                  className={cn(
-                    "rounded-md p-2 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
-                  )}
-                  onClick={handleToggle}
-                  title={t.exitFullscreen}
-                  type="button"
-                >
-                  <XIcon aria-hidden="true" size={20} />
-                </button>
-              </div>
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: "div with role=presentation is used for event propagation control" */}
-              <div
-                className={cn("flex size-full items-center justify-center p-4")}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-                role="presentation"
-              >
-                <Mermaid
-                  chart={chart}
-                  className={cn("size-full [&_svg]:h-auto [&_svg]:w-auto")}
-                  config={config}
-                  fullscreen={true}
-                  showControls={showPanZoomControls}
-                />
-              </div>
-            </div>,
-            resolvePortalTarget(portal)
-          )
-        : null}
-    </>
+    <DiagramFullscreenButton
+      chart={chart}
+      className={className}
+      config={config}
+      DiagramComponent={Mermaid}
+      name="mermaid"
+      onExit={onExit}
+      onFullscreen={onFullscreen}
+      plugin={plugin}
+      sourceExtension="mmd"
+      {...props}
+    />
   );
 };

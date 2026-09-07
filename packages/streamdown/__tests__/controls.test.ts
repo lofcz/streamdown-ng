@@ -59,6 +59,20 @@ describe("getDownloadFilename", () => {
         "diagram"
       )
     ).toBe("sequence");
+    expect(
+      getDownloadFilename(
+        { vega: { download: { filename: "revenue" } } },
+        "vega",
+        "diagram"
+      )
+    ).toBe("revenue");
+    expect(
+      getDownloadFilename(
+        { diagrams: { d2: { download: { filename: "arch" } } } },
+        "d2",
+        "diagram"
+      )
+    ).toBe("arch");
   });
 
   it("returns the fallback when filename is empty", () => {

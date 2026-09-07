@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext } from "react";
-import type { PluginConfig } from "./plugin-types";
+import { createContext, useContext, useMemo } from "react";
+import { collectDiagramPlugins, findDiagramPlugin } from "./diagram/adapter";
+import type { PluginConfig, SvgDiagramPlugin } from "./plugin-types";
 
 /**
  * Context for Streamdown plugins
@@ -35,6 +36,39 @@ export const useMermaidPlugin = () => {
 export const usePlantUmlPlugin = () => {
   const plugins = usePlugins();
   return plugins?.plantuml ?? null;
+};
+
+/**
+ * Hook to access the Vega plugin
+ */
+export const useVegaPlugin = () => {
+  const plugins = usePlugins();
+  return plugins?.vega ?? null;
+};
+
+/**
+ * Hook to access the SMILES plugin
+ */
+export const useSmilesPlugin = () => {
+  const plugins = usePlugins();
+  return plugins?.smiles ?? null;
+};
+
+/**
+ * All SVG diagram plugins, including named mermaid / plantuml / vega / smiles
+ * slots and extras from `plugins.diagrams`.
+ */
+export const useDiagramPlugins = (): SvgDiagramPlugin[] => {
+  const plugins = usePlugins();
+  return useMemo(() => collectDiagramPlugins(plugins), [plugins]);
+};
+
+/**
+ * Find an SVG diagram plugin for a fence language.
+ */
+export const useDiagramPlugin = (language: string): SvgDiagramPlugin | null => {
+  const diagrams = useDiagramPlugins();
+  return findDiagramPlugin(diagrams, language);
 };
 
 /**

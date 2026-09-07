@@ -5,6 +5,8 @@
 - [Plugin Overview](#plugin-overview)
 - [@streamdown/code](#streamdowncode)
 - [@streamdown/mermaid](#streamdownmermaid)
+- [@streamdown/vega](#streamdownvega)
+- [@streamdown/smiles](#streamdownsmiles)
 - [@streamdown/math](#streamdownmath)
 - [@streamdown/cjk](#streamdowncjk)
 - [Built-in Remark Plugins](#built-in-remark-plugins)
@@ -16,7 +18,7 @@
 Each plugin is a standalone package. Install only what's needed:
 
 ```bash
-npm install @streamdown/code @streamdown/mermaid @streamdown/math @streamdown/cjk
+npm install @streamdown/code @streamdown/mermaid @streamdown/vega @streamdown/math @streamdown/cjk
 ```
 
 ```tsx
@@ -142,6 +144,72 @@ const mermaid = createMermaidPlugin({
 ```
 
 **Streaming behavior:** Diagrams render as code blocks until the mermaid block is complete.
+
+## @streamdown/vega
+
+Vega / Vega-Lite charts. Shares the generic SVG diagram path with Mermaid and PlantUML.
+
+**Install:**
+```bash
+npm install @streamdown/vega vega vega-lite
+```
+
+**Default usage:**
+```tsx
+import { createVegaPlugin } from '@streamdown/vega';
+import { engine } from '@streamdown/vega/engine';
+
+const vega = createVegaPlugin({ engine });
+
+<Streamdown plugins={{ vega }}>{markdown}</Streamdown>
+```
+
+**Languages:** `vega`, `vega-lite`, `vegalite`. Vega-Lite is selected from the fence name, `$schema`, or a `mark` field.
+
+**Options:**
+```tsx
+<Streamdown
+  plugins={{ vega }}
+  vega={{ config: { mode: "auto" } }}
+  controls={{ vega: { download: { filename: "revenue" } } }}
+>
+```
+
+**Extra engines:** pass `plugins.diagrams` (array of `{ name, type: "diagram", language, render }`) and optional `diagrams` / `controls.diagrams` keyed by plugin name.
+
+**Streaming behavior:** Incomplete JSON keeps the last valid chart (same last-good-SVG behaviour as Mermaid).
+
+## @streamdown/smiles
+
+Chemical structures and reactions from SMILES. Shares the generic SVG diagram path with Mermaid, PlantUML, and Vega.
+
+**Install:**
+```bash
+npm install @streamdown/smiles smiles-drawer
+```
+
+**Default usage:**
+```tsx
+import { createSmilesPlugin } from '@streamdown/smiles';
+import { engine } from '@streamdown/smiles/engine';
+
+const smiles = createSmilesPlugin({ engine });
+
+<Streamdown plugins={{ smiles }}>{markdown}</Streamdown>
+```
+
+**Languages:** `smiles`, `smi`. Reaction SMILES (`reactants>reagents>products`) use compact drawing.
+
+**Options:**
+```tsx
+<Streamdown
+  plugins={{ smiles }}
+  smiles={{ config: { theme: "auto", elementColors: true } }}
+  controls={{ smiles: { download: { filename: "aspirin" } } }}
+>
+```
+
+**Streaming behavior:** Incomplete SMILES keeps the last valid structure (same last-good-SVG behaviour as Mermaid).
 
 ## @streamdown/math
 

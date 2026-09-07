@@ -1,0 +1,60 @@
+{
+  "name": "@lofcz/streamdown-vega",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./engine": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest --coverage run"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "vega": "^6.0.0",
+    "vega-lite": "^6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vega": {
+      "optional": true
+    },
+    "vega-lite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^27.3.0",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vega": "^6.4.0",
+    "vega-lite": "^6.4.3",
+    "vitest": "^4.1.10"
+  },
+  "author": "Hayden Bleasel <hayden.bleasel@vercel.com>",
+  "license": "Apache-2.0",
+  "description": "Vega / Vega-Lite chart plugin for Streamdown",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lofcz/streamdown-ng.git",
+    "directory": "packages/streamdown-vega"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

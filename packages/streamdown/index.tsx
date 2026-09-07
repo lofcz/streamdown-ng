@@ -58,6 +58,7 @@ import {
   type CalloutIconResolver,
   type CalloutStyleResolver,
   type ControlsConfig,
+  type DiagramOptions,
   type LinkSafetyConfig,
   type ListStylePreset,
   type MermaidOptions,
@@ -67,6 +68,7 @@ import {
   type ScrollableComponent,
   StreamdownContext,
   type StreamdownContextType,
+  type VegaOptions,
 } from "./lib/streamdown-context";
 import {
   defaultTranslations,
@@ -113,8 +115,15 @@ export type {
   PlantUmlInstance,
   PlantUmlPlugin,
   PluginConfig,
+  SmilesConfig,
+  SmilesInstance,
+  SmilesPlugin,
+  SvgDiagramPlugin,
   ThemeInput,
   ThemeRegistrationAny,
+  VegaConfig,
+  VegaInstance,
+  VegaPlugin,
 } from "./lib/plugin-types";
 export { DefaultScrollable } from "./lib/scrollable";
 export type {
@@ -122,6 +131,8 @@ export type {
   CalloutStyleResolver,
   ControlsConfig,
   CopyControlConfig,
+  DiagramErrorComponentProps,
+  DiagramOptions,
   DownloadControlConfig,
   LinkSafetyConfig,
   LinkSafetyModalProps,
@@ -134,8 +145,12 @@ export type {
   PortalTarget,
   ScrollableComponent,
   ScrollableProps,
+  SmilesErrorComponentProps,
+  SmilesOptions,
   StreamdownContextType,
   TableCopyFormat,
+  VegaErrorComponentProps,
+  VegaOptions,
 } from "./lib/streamdown-context";
 export { StreamdownContext } from "./lib/streamdown-context";
 export {
@@ -215,6 +230,10 @@ export type StreamdownProps = Options & {
   mermaid?: MermaidOptions;
   openscad?: OpenScadOptions;
   plantuml?: PlantUmlOptions;
+  smiles?: SmilesOptions;
+  vega?: VegaOptions;
+  /** Per-engine options for extra SVG diagrams registered via `plugins.diagrams`. */
+  diagrams?: Record<string, DiagramOptions>;
   codeBlockMaxHeight?: number | string;
   controls?: ControlsConfig;
   isAnimating?: boolean;
@@ -590,6 +609,9 @@ export const Streamdown = memo(
     mermaid,
     openscad,
     plantuml,
+    smiles,
+    vega,
+    diagrams,
     codeBlockMaxHeight = 400,
     controls = true,
     isAnimating = false,
@@ -1011,6 +1033,9 @@ export const Streamdown = memo(
         mermaid,
         openscad,
         plantuml,
+        smiles,
+        vega,
+        diagrams,
         linkSafety,
         portal,
         scrollable,
@@ -1032,6 +1057,9 @@ export const Streamdown = memo(
         mermaid,
         openscad,
         plantuml,
+        smiles,
+        vega,
+        diagrams,
         linkSafety,
         portal,
         scrollable,

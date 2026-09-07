@@ -1,0 +1,81 @@
+---
+title: "@streamdown/smiles"
+description: Render chemical structures and reactions from SMILES strings.
+type: reference
+summary: Client-side SMILES rendering via smiles-drawer, with the same interactive controls as Mermaid and PlantUML.
+prerequisites:
+  - /docs/plugins
+related:
+  - /docs/code-blocks
+  - /docs/plugins/mermaid
+  - /docs/plugins/plantuml
+---
+
+The `@streamdown/smiles` plugin renders [SMILES](https://en.wikipedia.org/wiki/Simplified_molecular-input_line-entry_system) molecules and reaction schemes in the browser using [SmilesDrawer](https://github.com/reymond-group/smilesDrawer). The engine stays out of your bundler graph until you import the engine entry, and it only runs when a `smiles` or `smi` fence is actually rendered.
+
+- Interactive controls (fullscreen, download SVG/PNG/SMI, copy, pan/zoom)
+- CPK element colors, with an optional monochrome theme
+- Reaction SMILES (`reactants>reagents>products`) use compact drawing
+- Custom error handling with retry
+
+## Install
+
+```package-install
+npm install @streamdown/smiles smiles-drawer
+```
+
+`smiles-drawer` is an optional peer dependency: importing the engine entry is what pulls it into your bundler's module graph, so apps that don't use the plugin never bundle it.
+
+## Usage
+
+```tsx title="chat.tsx" lineNumbers
+import { createSmilesPlugin } from '@streamdown/smiles';
+import { engine } from '@streamdown/smiles/engine';
+
+const smiles = createSmilesPlugin({ engine });
+
+<Streamdown plugins={{ smiles }}>
+  {markdown}
+</Streamdown>
+```
+
+Without the plugin, SMILES code blocks render as plain code.
+
+## Language identifiers
+
+````markdown
+```smiles
+CC(=O)Oc1ccccc1C(=O)O
+```
+````
+
+`smi` is accepted as an alias of `smiles`.
+
+Reaction SMILES use `>` to separate reactants, reagents, and products:
+
+````markdown
+```smiles
+CCO.CC(=O)O>>CC(=O)OCC
+```
+````
+
+## Options
+
+Pass `errorComponent` or `config` on the `smiles` prop (same shape as Mermaid):
+
+```tsx
+<Streamdown
+  plugins={{ smiles }}
+  smiles={{
+    config: { theme: "auto", elementColors: true },
+    errorComponent: MySmilesError,
+  }}
+>
+  {markdown}
+</Streamdown>
+```
+
+- `config.theme` — `"auto"` (default, follows the page dark theme), `"light"`, `"dark"`, or `"oldschool"`
+- `config.elementColors` — set `false` to force monochrome (`oldschool`)
+- `config.width` / `config.height` — canvas size in CSS pixels (default 320×220)
+- `controls.smiles` — toggle download, copy, fullscreen, and pan-zoom

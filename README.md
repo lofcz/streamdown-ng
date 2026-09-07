@@ -9,5 +9,5 @@ This is a fork of [Streamdown](https://github.com/vercel/streamdown) by [Vercel]
 - Merged in contributions from many PRs upstream; where possible the original commits were left in the history
 - Performance improvements
 - Extended GFM support
-- PlantUML, OpenSCAD, and ASCII/box-drawing diagram plugins
+- PlantUML, OpenSCAD, Vega/Vega-Lite, and ASCII/box-drawing diagram plugins
 - Bug fixes

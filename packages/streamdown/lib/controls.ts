@@ -10,16 +10,28 @@ interface TableCopyCallbacks {
   onError?: (error: Error) => void;
 }
 
+const lookupTypeConfig = (config: ControlsConfig, type: string) => {
+  if (typeof config === "boolean") {
+    return;
+  }
+
+  if (type !== "diagrams" && type in config) {
+    return config[type as keyof typeof config];
+  }
+
+  return config.diagrams?.[type];
+};
+
 export const getDownloadFilename = (
   config: ControlsConfig,
-  type: "code" | "table" | "mermaid" | "plantuml" | "openscad",
+  type: string,
   fallback: string
 ): string => {
   if (typeof config === "boolean") {
     return fallback;
   }
 
-  const typeConfig = config[type];
+  const typeConfig = lookupTypeConfig(config, type);
   if (typeof typeConfig !== "object") {
     return fallback;
   }
@@ -38,17 +50,17 @@ export function getCopyCallbacks(
 ): TableCopyCallbacks;
 export function getCopyCallbacks(
   config: ControlsConfig,
-  type: "code" | "mermaid" | "plantuml" | "openscad"
+  type: string
 ): CodeCopyCallbacks;
 export function getCopyCallbacks(
   config: ControlsConfig,
-  type: "code" | "mermaid" | "plantuml" | "openscad" | "table"
+  type: string
 ): CodeCopyCallbacks | TableCopyCallbacks {
   if (typeof config === "boolean") {
     return {};
   }
 
-  const typeConfig = config[type];
+  const typeConfig = lookupTypeConfig(config, type);
   if (typeof typeConfig !== "object") {
     return {};
   }

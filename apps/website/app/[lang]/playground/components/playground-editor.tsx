@@ -4,9 +4,12 @@ import { cjk } from "@streamdown/cjk";
 import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
+import { createSmilesPlugin } from "@streamdown/smiles";
+import { engine as smilesEngine } from "@streamdown/smiles/engine";
+import { createVegaPlugin } from "@streamdown/vega";
+import { engine as vegaEngine } from "@streamdown/vega/engine";
 import { SettingsIcon } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { CustomRenderer } from "streamdown";
 import { Streamdown } from "streamdown";
 import {
   Conversation,
@@ -27,7 +30,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { VegaLiteRenderer } from "./vega-lite-renderer";
+
+const smiles = createSmilesPlugin({ engine: smilesEngine });
+const vega = createVegaPlugin({ engine: vegaEngine });
 
 const defaultMarkdown = `# Streamdown Feature Showcase
 
@@ -239,7 +244,7 @@ stateDiagram-v2
 
 ---
 
-## Vega-Lite Charts (Custom Renderer)
+## Vega-Lite Charts
 
 \`\`\`vega-lite
 {
@@ -268,6 +273,22 @@ stateDiagram-v2
 
 ---
 
+## Chemical structures (SMILES)
+
+Aspirin:
+
+\`\`\`smiles
+CC(=O)Oc1ccccc1C(=O)O
+\`\`\`
+
+Esterification:
+
+\`\`\`smiles
+CCO.CC(=O)O>>CC(=O)OCC
+\`\`\`
+
+---
+
 ## CJK Support
 
 **Chinese:** **你好世界。** Streamdown 支持中文排版。
@@ -288,10 +309,6 @@ Three dashes create a horizontal rule:
 
 &copy; 2025 &mdash; Streamdown &bull; Built with &hearts;
 `;
-
-const renderers: CustomRenderer[] = [
-  { language: ["vega-lite", "vega"], component: VegaLiteRenderer },
-];
 
 const PlaygroundEditor = () => {
   const [markdown, setMarkdown] = useState(defaultMarkdown);
@@ -578,7 +595,7 @@ const PlaygroundEditor = () => {
                 caret={caret === "none" ? undefined : caret}
                 isAnimating={isStreaming}
                 mode={mode}
-                plugins={{ code, mermaid, math, cjk, renderers }}
+                plugins={{ code, mermaid, math, cjk, vega, smiles }}
               >
                 {isStreaming ? markdownOutput : markdown}
               </Streamdown>

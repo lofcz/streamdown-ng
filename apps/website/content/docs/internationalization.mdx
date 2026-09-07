@@ -165,6 +165,80 @@ These labels are shared by Mermaid, PlantUML, and OpenSCAD controls.
   }}
 />
 
+### Vega charts
+
+<TypeTable
+  type={{
+    vegaChart: {
+      description: "Accessible name for the rendered Vega SVG",
+      type: "string",
+      default: '"Vega chart"',
+    },
+    downloadDiagramAsJson: {
+      description: "Download diagram as JSON option",
+      type: "string",
+      default: '"Download diagram as JSON"',
+    },
+    vegaFormatJson: {
+      description: "Short format label for Vega source",
+      type: "string",
+      default: '"JSON"',
+    },
+    vegaErrorLabel: {
+      description: "Prefix shown before a Vega render error",
+      type: "string",
+      default: '"Vega Error"',
+    },
+    vegaPluginMissing: {
+      description: "Error when the Vega plugin is not installed",
+      type: "string",
+      default: '"Vega plugin not available. Please add the vega plugin to enable chart rendering."',
+    },
+    vegaRenderFailed: {
+      description: "Fallback when Vega rendering fails without an error message",
+      type: "string",
+      default: '"Failed to render Vega chart"',
+    },
+  }}
+/>
+
+### SMILES structures
+
+<TypeTable
+  type={{
+    smilesChart: {
+      description: "Accessible name for the rendered chemical structure SVG",
+      type: "string",
+      default: '"Chemical structure"',
+    },
+    downloadDiagramAsSmi: {
+      description: "Download diagram as SMILES option",
+      type: "string",
+      default: '"Download diagram as SMILES"',
+    },
+    smilesFormatSmi: {
+      description: "Short format label for SMILES source",
+      type: "string",
+      default: '"SMI"',
+    },
+    smilesErrorLabel: {
+      description: "Prefix shown before a SMILES render error",
+      type: "string",
+      default: '"SMILES Error"',
+    },
+    smilesPluginMissing: {
+      description: "Error when the SMILES plugin is not installed",
+      type: "string",
+      default: '"SMILES plugin not available. Please add the smiles plugin to enable chemical structure rendering."',
+    },
+    smilesRenderFailed: {
+      description: "Fallback when SMILES rendering fails without an error message",
+      type: "string",
+      default: '"Failed to render SMILES structure"',
+    },
+  }}
+/>
+
 ### PlantUML diagrams
 
 <TypeTable

@@ -9,7 +9,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./engine": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -20,12 +25,16 @@
     "test:coverage": "vitest --coverage run"
   },
   "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "@plantuml/core": "*"
   },
-  "dependencies": {
-    "@plantuml/core": "1.2026.7"
+  "peerDependenciesMeta": {
+    "@plantuml/core": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@plantuml/core": "1.2026.7",
     "@vitest/coverage-v8": "^4.1.10",
     "jsdom": "^27.3.0",
     "tsup": "^8.5.1",

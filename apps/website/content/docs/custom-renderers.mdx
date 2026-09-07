@@ -12,7 +12,7 @@ related:
   - /docs/plugins
 ---
 
-The `renderers` field on `PluginConfig` lets you register custom React components for arbitrary code fence languages. Use this to render Vega-Lite charts, AntV infographics, D2 diagrams, PlantUML, or any other visualization — without forking Streamdown.
+The `renderers` field on `PluginConfig` lets you register custom React components for arbitrary code fence languages. Use this for engines that are not first-class plugins (AntV, D2, Graphviz, …) — without forking Streamdown. Vega / Vega-Lite, PlantUML, and Mermaid ship as official plugins; extra SVG engines can also use `plugins.diagrams` instead of a custom React renderer.
 
 Custom renderers take priority over default code blocks. If a custom renderer matches a language, it renders instead of the default `CodeBlock`. You can even override mermaid by registering a renderer for the `"mermaid"` language.
 
@@ -141,7 +141,9 @@ export const VegaLiteRenderer = ({
 
 ### Vega-Lite charts
 
-[Vega-Lite](https://vega.github.io/vega-lite/) is a grammar for interactive graphics. Install `vega`, `vega-lite`, and `vega-embed`, then create a renderer that parses the JSON spec and calls `vegaEmbed`:
+Prefer the official [`@streamdown/vega`](/docs/plugins/vega) plugin for `vega` / `vega-lite` fences. The example below is the custom-renderer approach if you want `vega-embed` interactivity (tooltips, selections) instead of the shared SVG diagram path.
+
+Install `vega`, `vega-lite`, and `vega-embed`, then create a renderer that parses the JSON spec and calls `vegaEmbed`:
 
 ```bash
 npm install vega vega-lite vega-embed
