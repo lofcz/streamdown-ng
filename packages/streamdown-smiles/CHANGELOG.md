@@ -1,5 +1,11 @@
 # @lofcz/streamdown-smiles
 
+## 2.0.1
+
+### Patch Changes
+
+- f564f15: Wait to parse Vega and SMILES until the fence closes, and add a SMILES toolbar toggle between skeletal structures and SmilesDrawer compact notation (CH₃ / COOH).
+
 ## 2.0.0
 
 ### Major Changes
