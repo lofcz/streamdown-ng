@@ -663,15 +663,21 @@ export const Streamdown = memo(
     );
 
     // Payload tags must stay a single HTML block so nested child tags survive
-    // as elements for rehypeDataOnlyTags. The blank-line sandwich would
-    // interrupt the block and collapse those children into a paragraph.
+    // as elements for rehypeDataOnlyTags. Literal tags must also stay a single
+    // HTML block: the blank-line sandwich would let GFM parse their body, which
+    // leaves entity-encoded punctuation after a bare URL (e.g. `&#93;` after
+    // `https://…`) undecoded. See vercel/streamdown#615.
     const markdownContainerTagNames = useMemo(() => {
-      if (!dataOnlyTags?.length) {
+      if (!(dataOnlyTags?.length || literalTagContent?.length)) {
         return allowedTagNames;
       }
-      const skip = new Set(dataOnlyTags.map((t) => t.toLowerCase()));
+      const skip = new Set(
+        [...(dataOnlyTags ?? []), ...(literalTagContent ?? [])].map((t) =>
+          t.toLowerCase()
+        )
+      );
       return allowedTagNames.filter((t) => !skip.has(t.toLowerCase()));
-    }, [allowedTagNames, dataOnlyTags]);
+    }, [allowedTagNames, dataOnlyTags, literalTagContent]);
 
     // Track raw (pre-remend) block parses so append-only streams can reuse
     // settled prefix blocks instead of re-lexing the entire document.
@@ -698,8 +704,8 @@ export const Streamdown = memo(
 
       // Normalize multi-line custom tags: blank-line sandwich so nested markdown
       // parses, plus <!----> placeholders for internal blank lines. Runs after
-      // literal escaping so those markers are not corrupted. dataOnlyTags are
-      // excluded — they carry nested element payload, not prose.
+      // literal escaping so those markers are not corrupted. dataOnlyTags and
+      // literalTagContent are excluded — they carry payload / raw text, not prose.
       if (markdownContainerTagNames.length > 0) {
         result = preprocessCustomTags(result, markdownContainerTagNames);
       }
