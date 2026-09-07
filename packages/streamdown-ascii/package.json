@@ -1,0 +1,48 @@
+{
+  "name": "@lofcz/streamdown-ascii",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest --coverage run"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^27.3.0",
+    "react-dom": "^19.2.3",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  },
+  "author": "Hayden Bleasel <hayden.bleasel@vercel.com>",
+  "license": "Apache-2.0",
+  "description": "ASCII and Unicode box-drawing diagram rendering plugin for Streamdown",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lofcz/streamdown-ng.git",
+    "directory": "packages/streamdown-ascii"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

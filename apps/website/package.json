@@ -13,6 +13,7 @@
     "@ai-sdk/react": "^2.0.115",
     "@icons-pack/react-simple-icons": "^13.15.1",
     "@orama/tokenizers": "^3.1.16",
+    "@streamdown/ascii": "workspace:@lofcz/streamdown-ascii@*",
     "@streamdown/cjk": "workspace:@lofcz/streamdown-cjk@*",
     "@streamdown/code": "workspace:@lofcz/streamdown-code@*",
     "@streamdown/math": "workspace:@lofcz/streamdown-math@*",
