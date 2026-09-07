@@ -1,5 +1,21 @@
 # streamdown
 
+## 2.15.0
+
+### Minor Changes
+
+- ed88b73: Add a first-class SMILES chemical structure plugin. Fenced `smiles` / `smi` blocks render through `@lofcz/streamdown-smiles` (SmilesDrawer) on the shared SVG diagram path, with the same download, fullscreen, and pan/zoom controls as Mermaid, PlantUML, and Vega.
+
+  SMILES follows the OpenSCAD engine-injection pattern: `createSmilesPlugin({ engine })` plus a separate `./engine` entry so `smiles-drawer` stays out of the bundler graph until the engine is imported.
+
+- ed88b73: Add a generic SVG diagram plugin path and first-class Vega / Vega-Lite charts. Mermaid and PlantUML now share one renderer, controls, and download/fullscreen UI; extra engines can be registered via `plugins.diagrams`. Fenced `vega` / `vega-lite` / `vegalite` blocks render through `@lofcz/streamdown-vega`.
+
+  Vega and PlantUML now follow the OpenSCAD engine-injection pattern: `createXPlugin({ engine })` plus a separate `./engine` entry so `vega` / `vega-lite` and `@plantuml/core` stay out of the bundler graph until the engine is imported.
+
+### Patch Changes
+
+- d3e20f7: Keep literal data tags out of multiline Markdown-container preprocessing so encoded punctuation next to URLs remains literal text.
+
 ## 2.14.1
 
 ### Patch Changes
