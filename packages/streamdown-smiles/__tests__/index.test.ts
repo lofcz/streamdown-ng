@@ -5,6 +5,7 @@ import {
   createSmilesPlugin,
   isReactionSmiles,
   isSmilesLanguage,
+  resolveCompactDrawing,
   resolveSmilesTheme,
   SMILES_LANGUAGES,
 } from "../index";
@@ -67,6 +68,20 @@ describe("isReactionSmiles", () => {
   });
 });
 
+describe("resolveCompactDrawing", () => {
+  it("defaults reactions to compact and molecules to skeletal", () => {
+    expect(resolveCompactDrawing(ESTERIFICATION)).toBe(true);
+    expect(resolveCompactDrawing(ASPIRIN)).toBe(false);
+  });
+
+  it("honors an explicit compactDrawing option", () => {
+    expect(resolveCompactDrawing(ASPIRIN, { compactDrawing: true })).toBe(true);
+    expect(
+      resolveCompactDrawing(ESTERIFICATION, { compactDrawing: false })
+    ).toBe(false);
+  });
+});
+
 describe("resolveSmilesTheme", () => {
   it("uses oldschool when element colors are disabled", () => {
     expect(resolveSmilesTheme({ theme: "dark", elementColors: false })).toBe(
@@ -103,5 +118,16 @@ describe("render", () => {
     const plugin = createSmilesPlugin({ engine });
     const { svg } = await plugin.render(ESTERIFICATION);
     expect(svg).toContain("<svg");
+  });
+
+  it("compact drawing concatenates terminals that skeletal drawing does not", async () => {
+    const plugin = createSmilesPlugin({ engine });
+    const acetic = "CC(=O)O";
+    const [compact, skeletal] = await Promise.all([
+      plugin.render(acetic, { compactDrawing: true }),
+      plugin.render(acetic, { compactDrawing: false }),
+    ]);
+    expect(compact.svg).not.toBe(skeletal.svg);
+    expect(compact.svg).toContain("H₃");
   });
 });

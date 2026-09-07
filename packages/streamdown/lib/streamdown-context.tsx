@@ -34,6 +34,8 @@ export type DiagramControls =
   | {
       download?: DownloadControlConfig;
       copy?: CopyControlConfig;
+      /** SMILES only: skeletal structures vs compact CH₃ / COOH notation. */
+      compact?: boolean;
       fullscreen?: boolean;
       panZoom?: boolean;
     };

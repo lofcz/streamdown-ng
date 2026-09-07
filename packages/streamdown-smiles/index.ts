@@ -11,6 +11,12 @@ export type SmilesTheme = SmilesDrawerTheme | "auto";
 
 export interface SmilesConfig {
   /**
+   * Concatenate terminals and pseudo-elements (CH₃, COOH) the way
+   * Wikipedia compact formulas do. When omitted, reactions default to
+   * `true` and standalone molecules to `false`.
+   */
+  compactDrawing?: boolean;
+  /**
    * When false, force the monochrome `oldschool` theme.
    * @default true
    */
@@ -108,6 +114,16 @@ export function isReactionSmiles(smiles: string): boolean {
   return token.includes(">");
 }
 
+export function resolveCompactDrawing(
+  source: string,
+  options: SmilesConfig = {}
+): boolean {
+  if (typeof options.compactDrawing === "boolean") {
+    return options.compactDrawing;
+  }
+  return isReactionSmiles(source);
+}
+
 export function prefersDarkTheme(): boolean {
   if (typeof document === "undefined") {
     return false;
@@ -181,12 +197,12 @@ const createSmiDrawer = (
   SmilesDrawer: SmilesDrawerRuntime,
   width: number,
   height: number,
-  smiles: string
+  compactDrawing: boolean
 ) =>
   new SmilesDrawer.SmiDrawer({
     width,
     height,
-    compactDrawing: isReactionSmiles(smiles),
+    compactDrawing,
   });
 
 const ensureTitle = (svg: SVGSVGElement) => {
@@ -229,7 +245,12 @@ async function renderSmiles(
   scratch.setAttribute("width", String(width));
   scratch.setAttribute("height", String(height));
 
-  const drawer = createSmiDrawer(SmilesDrawer, width, height, trimmed);
+  const drawer = createSmiDrawer(
+    SmilesDrawer,
+    width,
+    height,
+    resolveCompactDrawing(trimmed, options)
+  );
 
   await new Promise<void>((resolve, reject) => {
     drawer.draw(

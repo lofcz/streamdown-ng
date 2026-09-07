@@ -657,6 +657,161 @@ describe("Markdown Components", () => {
       });
     });
 
+    it("toggles smiles compact drawing from the toolbar", async () => {
+      const Code = components.code;
+      if (!Code) {
+        throw new Error("Code component not found");
+      }
+
+      const { fireEvent } = await import("@testing-library/react");
+      const { PluginContext } = await import("../lib/plugin-context");
+      const { vi } = await import("vitest");
+
+      const renderStructure = vi
+        .fn()
+        .mockResolvedValue({ svg: "<svg>Molecule</svg>" });
+      const mockSmilesPlugin = {
+        name: "smiles" as const,
+        type: "diagram" as const,
+        language: ["smiles", "smi"],
+        sourceExtension: "smi",
+        getSmiles: vi.fn().mockReturnValue({ render: renderStructure }),
+      };
+
+      const { container } = render(
+        <PluginContext.Provider value={{ smiles: mockSmilesPlugin }}>
+          <Code
+            className="language-smiles"
+            data-block="true"
+            node={null as any}
+          >
+            {"CCO"}
+          </Code>
+        </PluginContext.Provider>
+      );
+
+      await waitFor(
+        () => {
+          expect(renderStructure).toHaveBeenCalled();
+        },
+        { timeout: 3000 }
+      );
+      expect(renderStructure.mock.calls.at(-1)?.[1]).toMatchObject({
+        compactDrawing: false,
+      });
+
+      const toggle = container.querySelector<HTMLButtonElement>(
+        "button[aria-pressed]"
+      );
+      if (!toggle) {
+        throw new Error("compact notation toggle not found");
+      }
+      fireEvent.click(toggle);
+
+      await waitFor(() => {
+        expect(renderStructure.mock.calls.at(-1)?.[1]).toMatchObject({
+          compactDrawing: true,
+        });
+      });
+    });
+
+    it("should not invoke the vega engine while the fence is incomplete", async () => {
+      const { BlockIncompleteContext } = await import(
+        "../lib/block-incomplete-context"
+      );
+      const { Diagram } = await import("../lib/diagram");
+      const { vi } = await import("vitest");
+
+      const renderChart = vi
+        .fn()
+        .mockResolvedValue({ svg: "<svg>Chart</svg>" });
+      const mockVegaPlugin = {
+        name: "vega" as const,
+        type: "diagram" as const,
+        language: ["vega", "vega-lite", "vegalite"],
+        sourceExtension: "json",
+        render: renderChart,
+      };
+
+      const { container: streaming } = render(
+        <BlockIncompleteContext.Provider value={true}>
+          <Diagram chart='{"mark":"bar"}' plugin={mockVegaPlugin} />
+        </BlockIncompleteContext.Provider>
+      );
+
+      await waitFor(
+        () => {
+          expect(
+            streaming.textContent?.includes("Waiting for the diagram")
+          ).toBe(true);
+        },
+        { timeout: 3000 }
+      );
+      expect(renderChart).not.toHaveBeenCalled();
+
+      const { container: complete } = render(
+        <BlockIncompleteContext.Provider value={false}>
+          <Diagram chart='{"mark":"bar"}' plugin={mockVegaPlugin} />
+        </BlockIncompleteContext.Provider>
+      );
+
+      await waitFor(
+        () => {
+          expect(renderChart).toHaveBeenCalledTimes(1);
+        },
+        { timeout: 3000 }
+      );
+      expect(complete.querySelector('[data-streamdown="vega"]')).toBeTruthy();
+    });
+
+    it("should not invoke the smiles engine while the fence is incomplete", async () => {
+      const { BlockIncompleteContext } = await import(
+        "../lib/block-incomplete-context"
+      );
+      const { Diagram } = await import("../lib/diagram");
+      const { vi } = await import("vitest");
+
+      const renderStructure = vi
+        .fn()
+        .mockResolvedValue({ svg: "<svg>Molecule</svg>" });
+      const mockSmilesPlugin = {
+        name: "smiles" as const,
+        type: "diagram" as const,
+        language: ["smiles", "smi"],
+        sourceExtension: "smi",
+        render: renderStructure,
+      };
+
+      const { container: streaming } = render(
+        <BlockIncompleteContext.Provider value={true}>
+          <Diagram chart="CC(=O)Oc" plugin={mockSmilesPlugin} />
+        </BlockIncompleteContext.Provider>
+      );
+
+      await waitFor(
+        () => {
+          expect(
+            streaming.textContent?.includes("Waiting for the diagram")
+          ).toBe(true);
+        },
+        { timeout: 3000 }
+      );
+      expect(renderStructure).not.toHaveBeenCalled();
+
+      render(
+        <BlockIncompleteContext.Provider value={false}>
+          <Diagram chart="CCO" plugin={mockSmilesPlugin} />
+        </BlockIncompleteContext.Provider>
+      );
+
+      await waitFor(
+        () => {
+          expect(renderStructure).toHaveBeenCalledTimes(1);
+        },
+        { timeout: 3000 }
+      );
+    });
+
     it("should render openscad code as regular code block when plugin not provided", async () => {
       const Code = components.code;
       if (!Code) {

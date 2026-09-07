@@ -1,6 +1,11 @@
 import type { ControlsConfig } from "../streamdown-context";
 
-export type DiagramControlType = "download" | "copy" | "fullscreen" | "panZoom";
+export type DiagramControlType =
+  | "download"
+  | "copy"
+  | "compact"
+  | "fullscreen"
+  | "panZoom";
 
 const lookupDiagramControls = (config: ControlsConfig, name: string) => {
   if (typeof config === "boolean") {

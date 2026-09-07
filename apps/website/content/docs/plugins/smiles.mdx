@@ -15,7 +15,8 @@ The `@streamdown/smiles` plugin renders [SMILES](https://en.wikipedia.org/wiki/S
 
 - Interactive controls (fullscreen, download SVG/PNG/SMI, copy, pan/zoom)
 - CPK element colors, with an optional monochrome theme
-- Reaction SMILES (`reactants>reagents>products`) use compact drawing
+- Toolbar toggle between skeletal structures and compact Wikipedia-style notation (`CH₃`, `COOH`)
+- Reaction SMILES (`reactants>reagents>products`) start in compact drawing; molecules start skeletal
 - Custom error handling with retry
 
 ## Install
@@ -77,5 +78,6 @@ Pass `errorComponent` or `config` on the `smiles` prop (same shape as Mermaid):
 
 - `config.theme` — `"auto"` (default, follows the page dark theme), `"light"`, `"dark"`, or `"oldschool"`
 - `config.elementColors` — set `false` to force monochrome (`oldschool`)
+- `config.compactDrawing` — `true` concatenates terminals (`COOH`, `CH₃`); `false` draws full structures. When omitted, reactions default to compact and molecules to skeletal. The block toolbar can override this per diagram.
 - `config.width` / `config.height` — canvas size in CSS pixels (default 320×220)
-- `controls.smiles` — toggle download, copy, fullscreen, and pan-zoom
+- `controls.smiles` — toggle download, copy, compact notation, fullscreen, and pan-zoom

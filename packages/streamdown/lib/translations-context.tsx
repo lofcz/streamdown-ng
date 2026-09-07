@@ -30,6 +30,7 @@ export interface StreamdownTranslations {
   diagramLoading: string;
   diagramPluginMissing: string;
   diagramRenderFailed: string;
+  diagramWriting: string;
   // Mermaid
   downloadDiagram: string;
   downloadDiagramAsJson: string;
@@ -84,6 +85,8 @@ export interface StreamdownTranslations {
   smilesFormatSmi: string;
   smilesPluginMissing: string;
   smilesRenderFailed: string;
+  smilesShowCompact: string;
+  smilesShowStructures: string;
   tableFormatCsv: string;
   tableFormatMarkdown: string;
   tableFormatTsv: string;
@@ -131,6 +134,7 @@ export const defaultTranslations: StreamdownTranslations = {
   diagramErrorLabel: "Diagram Error",
   diagramFormatSource: "Source",
   diagramLoading: "Loading diagram...",
+  diagramWriting: "Waiting for the diagram...",
   diagramPluginMissing:
     "Diagram plugin not available. Please add a matching diagram plugin to enable rendering.",
   diagramRenderFailed: "Failed to render diagram",
@@ -167,6 +171,8 @@ export const defaultTranslations: StreamdownTranslations = {
     "SMILES plugin not available. Please add the smiles plugin to enable chemical structure rendering.",
   smilesRenderFailed: "Failed to render SMILES structure",
   smilesFormatSmi: "SMI",
+  smilesShowCompact: "Show compact notation",
+  smilesShowStructures: "Show structures",
   vegaChart: "Vega chart",
   vegaErrorLabel: "Vega Error",
   vegaPluginMissing:

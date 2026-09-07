@@ -198,7 +198,7 @@ const smiles = createSmilesPlugin({ engine });
 <Streamdown plugins={{ smiles }}>{markdown}</Streamdown>
 ```
 
-**Languages:** `smiles`, `smi`. Reaction SMILES (`reactants>reagents>products`) use compact drawing.
+**Languages:** `smiles`, `smi`. Reaction SMILES (`reactants>reagents>products`) start in compact drawing (CH₃ / COOH); molecules start skeletal. The toolbar toggles between the two.
 
 **Options:**
 ```tsx

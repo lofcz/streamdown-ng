@@ -284,6 +284,7 @@ export interface OpenScadPlugin {
  * Avoids a hard dependency on `smiles-drawer` in the core bundle.
  */
 export interface SmilesConfig {
+  compactDrawing?: boolean;
   elementColors?: boolean;
   height?: number;
   theme?: "light" | "dark" | "oldschool" | "auto";

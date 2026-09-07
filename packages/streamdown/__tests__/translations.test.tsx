@@ -27,7 +27,12 @@ describe("defaultTranslations", () => {
     expect(defaultTranslations.plantumlChart).toBe("PlantUML chart");
     expect(defaultTranslations.vegaChart).toBe("Vega chart");
     expect(defaultTranslations.smilesChart).toBe("Chemical structure");
+    expect(defaultTranslations.smilesShowCompact).toBe("Show compact notation");
+    expect(defaultTranslations.smilesShowStructures).toBe("Show structures");
     expect(defaultTranslations.diagramChart).toBe("Diagram");
+    expect(defaultTranslations.diagramWriting).toBe(
+      "Waiting for the diagram..."
+    );
     expect(defaultTranslations.openscadModel).toBe("OpenSCAD model");
     expect(defaultTranslations.downloadDiagram).toBe("Download diagram");
     expect(defaultTranslations.downloadDiagramAsSvg).toBe(

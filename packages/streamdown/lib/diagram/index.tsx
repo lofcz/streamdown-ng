@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { useDeferredRender } from "../../hooks/use-deferred-render";
 import { StreamdownContext } from "../../index";
+import { useIsCodeFenceIncomplete } from "../block-incomplete-context";
 import { PanZoom } from "../mermaid/pan-zoom";
 import { getMermaidSvgSize, normalizeMermaidInlineSvg } from "../mermaid/utils";
 import type { SvgDiagramPlugin } from "../plugin-types";
@@ -9,6 +10,13 @@ import { useTranslations } from "../translations-context";
 import { getDiagramOptions } from "./context";
 import { diagramLabel } from "./labels";
 import { buildDiagramRenderOptions } from "./options";
+
+/**
+ * Vega (JSON) and SMILES error on every prefix of a streaming fence.
+ * Hold the engine until the closer arrives — same as OpenSCAD. Mermaid /
+ * PlantUML can still attempt a live preview and keep `lastValidSvg`.
+ */
+const DEFER_UNTIL_FENCE_CLOSED = new Set(["vega", "smiles"]);
 
 interface DiagramProps {
   chart: string;
@@ -46,6 +54,8 @@ export const Diagram = ({
   const streamdownContext = useContext(StreamdownContext);
   const diagramOptions = getDiagramOptions(streamdownContext, name);
   const ErrorComponent = diagramOptions?.errorComponent;
+  const isBlockIncomplete = useIsCodeFenceIncomplete();
+  const waitForClosedFence = DEFER_UNTIL_FENCE_CLOSED.has(name);
 
   const { shouldRender, containerRef } = useDeferredRender({
     immediate: fullscreen,
@@ -54,6 +64,11 @@ export const Diagram = ({
   // biome-ignore lint/correctness/useExhaustiveDependencies: "Required for diagram engines"
   useEffect(() => {
     if (!shouldRender) {
+      return;
+    }
+
+    // Incomplete Vega JSON / SMILES is never valid — skip the parse+error flash.
+    if (waitForClosedFence && isBlockIncomplete) {
       return;
     }
 
@@ -89,11 +104,40 @@ export const Diagram = ({
     };
 
     renderChart();
-  }, [chart, config, language, retryCount, shouldRender, plugin]);
+  }, [
+    chart,
+    config,
+    language,
+    retryCount,
+    shouldRender,
+    plugin,
+    isBlockIncomplete,
+    waitForClosedFence,
+  ]);
 
   if (!(shouldRender || svgContent || lastValidSvg)) {
     return (
       <div className={cn("my-4 min-h-[200px]", className)} ref={containerRef} />
+    );
+  }
+
+  if (waitForClosedFence && isBlockIncomplete && !svgContent && !lastValidSvg) {
+    return (
+      <div
+        className={cn("my-4 flex justify-center p-4", className)}
+        ref={containerRef}
+      >
+        <div
+          className={cn("flex items-center space-x-2 text-muted-foreground")}
+        >
+          <div
+            className={cn(
+              "h-4 w-4 animate-spin rounded-full border-current border-b-2"
+            )}
+          />
+          <span className={cn("text-sm")}>{t.diagramWriting}</span>
+        </div>
+      </div>
     );
   }
 

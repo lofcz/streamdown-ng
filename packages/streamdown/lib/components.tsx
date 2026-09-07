@@ -21,13 +21,6 @@ import { CodeBlockCopyButton } from "./code-block/copy-button";
 import { CodeBlockDownloadButton } from "./code-block/download-button";
 import { CodeBlockSkeleton } from "./code-block/skeleton";
 import { getCopyCallbacks } from "./controls";
-import { getDiagramOptions } from "./diagram/context";
-import {
-  shouldShowDiagramControl,
-  shouldShowDiagramControls,
-} from "./diagram/controls";
-import { DiagramDownloadDropdown } from "./diagram/download-button";
-import { DiagramFullscreenButton } from "./diagram/fullscreen-button";
 import { ImageComponent } from "./image";
 import { LinkSafetyModal } from "./link-modal";
 import type { ExtraProps, Options } from "./markdown";
@@ -56,8 +49,8 @@ const START_LINE_PATTERN = /startLine=(\d+)/;
 const NO_LINE_NUMBERS_PATTERN = /\bnoLineNumbers\b/;
 
 // Lazy load heavy components
-const Diagram = lazy(() =>
-  import("./diagram").then((mod) => ({ default: mod.Diagram }))
+const DiagramCodeBlock = lazy(() =>
+  import("./diagram/block").then((mod) => ({ default: mod.DiagramCodeBlock }))
 );
 
 const OpenScad = lazy(() =>
@@ -1140,106 +1133,15 @@ const CodeComponent = ({
   }
 
   if (diagramPlugin) {
-    const diagramName = diagramPlugin.name;
-    const diagramOptions = getDiagramOptions(streamdownContext, diagramName);
-    const showDownload = shouldShowDiagramControl(
-      controlsConfig,
-      diagramName,
-      "download"
-    );
-    const showCopy = shouldShowDiagramControl(
-      controlsConfig,
-      diagramName,
-      "copy"
-    );
-    const showFullscreen = shouldShowDiagramControl(
-      controlsConfig,
-      diagramName,
-      "fullscreen"
-    );
-    const showPanZoomControls = shouldShowDiagramControl(
-      controlsConfig,
-      diagramName,
-      "panZoom"
-    );
-    const showDiagramControls =
-      shouldShowDiagramControls(controlsConfig, diagramName) &&
-      (showDownload || showCopy || showFullscreen);
-
     return (
       <Suspense fallback={<CodeBlockSkeleton />}>
-        <div
-          className={cn(
-            "group relative my-4 flex w-full flex-col gap-2 rounded-xl border border-border bg-sidebar p-2",
-            className
-          )}
-          data-incomplete={isBlockIncomplete || undefined}
-          data-streamdown={`${diagramName}-block`}
-        >
-          <div
-            className={cn(
-              "flex h-8 items-center text-muted-foreground text-xs"
-            )}
-          >
-            <span className={cn("ml-1 font-mono lowercase")}>{language}</span>
-          </div>
-          {showDiagramControls ? (
-            <div
-              className={cn(
-                "pointer-events-none sticky top-2 z-10 -mt-10 flex h-8 items-center justify-end"
-              )}
-            >
-              <div
-                className={cn(
-                  "pointer-events-auto flex shrink-0 items-center gap-2 rounded-md border border-sidebar bg-sidebar/80 px-1.5 py-1 supports-[backdrop-filter]:bg-sidebar/70 supports-[backdrop-filter]:backdrop-blur"
-                )}
-                data-streamdown={`${diagramName}-block-actions`}
-              >
-                {showDownload ? (
-                  <DiagramDownloadDropdown
-                    chart={code}
-                    config={diagramOptions?.config}
-                    language={language}
-                    name={diagramName}
-                    plugin={diagramPlugin}
-                    sourceExtension={diagramPlugin.sourceExtension}
-                  />
-                ) : null}
-                {showCopy ? (
-                  <CodeBlockCopyButton
-                    code={code}
-                    label={t.copyDiagram}
-                    {...getCopyCallbacks(controlsConfig, diagramName)}
-                  />
-                ) : null}
-                {showFullscreen ? (
-                  <DiagramFullscreenButton
-                    chart={code}
-                    config={diagramOptions?.config}
-                    language={language}
-                    name={diagramName}
-                    plugin={diagramPlugin}
-                    sourceExtension={diagramPlugin.sourceExtension}
-                  />
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-          <div
-            className={cn(
-              "overflow-hidden rounded-md border border-border bg-background"
-            )}
-          >
-            <Diagram
-              chart={code}
-              config={diagramOptions?.config}
-              fallbackName={diagramName}
-              language={language}
-              plugin={diagramPlugin}
-              showControls={showPanZoomControls}
-            />
-          </div>
-        </div>
+        <DiagramCodeBlock
+          className={className}
+          code={code}
+          isBlockIncomplete={isBlockIncomplete}
+          language={language}
+          plugin={diagramPlugin}
+        />
       </Suspense>
     );
   }
