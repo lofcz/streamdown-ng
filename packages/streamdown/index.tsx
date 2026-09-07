@@ -41,7 +41,10 @@ import {
 import { PluginContext } from "./lib/plugin-context";
 import type { PluginConfig, ThemeInput } from "./lib/plugin-types";
 import { PrefixContext } from "./lib/prefix-context";
-import { preprocessCustomTags } from "./lib/preprocess-custom-tags";
+import {
+  preprocessCustomTags,
+  rewriteSelfClosingCustomTags,
+} from "./lib/preprocess-custom-tags";
 import { preprocessLiteralTagContent } from "./lib/preprocess-literal-tag-content";
 import { rehypeBlockDirection } from "./lib/rehype/block-direction";
 import { rehypeDataOnlyTags } from "./lib/rehype/data-only-tags";
@@ -725,6 +728,13 @@ export const Streamdown = memo(
         result = preprocessLiteralTagContent(result, literalTagContent);
       }
 
+      // Self-closing rewrite still applies to literal/data-only tags: rehype-raw
+      // treats unknown `<tag />` as a container and swallows following text.
+      // The blank-line sandwich below stays off for those tags (see #615).
+      if (allowedTagNames.length > 0) {
+        result = rewriteSelfClosingCustomTags(result, allowedTagNames);
+      }
+
       // Normalize multi-line custom tags: blank-line sandwich so nested markdown
       // parses, plus <!----> placeholders for internal blank lines. Runs after
       // literal escaping so those markers are not corrupted. dataOnlyTags and
@@ -741,7 +751,12 @@ export const Streamdown = memo(
       result = extractCallouts(result);
 
       return result;
-    }, [children, markdownContainerTagNames, literalTagContent]);
+    }, [
+      allowedTagNames,
+      children,
+      markdownContainerTagNames,
+      literalTagContent,
+    ]);
 
     const blocks = useMemo(() => {
       const prev = mode === "streaming" ? incrementalParseRef.current : null;

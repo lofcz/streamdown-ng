@@ -175,7 +175,11 @@ const normalizeUnclosedOpenTags = (
   return result + markdown.slice(lastIndex);
 };
 
-export const preprocessCustomTags = (
+/**
+ * Rewrite `<tag ... />` to `<tag ...></tag>` so rehype-raw does not treat
+ * unknown custom tags as non-void containers that swallow following text.
+ */
+export const rewriteSelfClosingCustomTags = (
   markdown: string,
   tagNames: string[]
 ): string => {
@@ -186,11 +190,6 @@ export const preprocessCustomTags = (
   let result = markdown;
 
   for (const tagName of tagNames) {
-    // Self-closing occurrences (`<tag ... />`): custom tags are unknown to the
-    // HTML spec, so rehype-raw's hast parser treats them as non-void container
-    // elements and swallows all following inline content as children, dropping
-    // it from the render. Rewriting to an explicit open+close pair keeps the
-    // tag empty and lets the trailing text stay a sibling text node.
     const selfClosingPattern = new RegExp(
       `<${tagName}(?=[\\s>/])((?:"[^"]*"|'[^']*'|[^"'>])*)\\/>`,
       "gi"
@@ -201,6 +200,19 @@ export const preprocessCustomTags = (
       (_match, attrs) => `<${tagName}${attrs}></${tagName}>`
     );
   }
+
+  return result;
+};
+
+export const preprocessCustomTags = (
+  markdown: string,
+  tagNames: string[]
+): string => {
+  if (!tagNames.length) {
+    return markdown;
+  }
+
+  let result = rewriteSelfClosingCustomTags(markdown, tagNames);
 
   for (const tagName of tagNames) {
     result = replaceTagPairsOutsideCode(result, tagName, normalizeClosedTag);

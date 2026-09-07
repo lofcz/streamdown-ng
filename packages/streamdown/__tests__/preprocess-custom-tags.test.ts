@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { preprocessCustomTags } from "../lib/preprocess-custom-tags";
+import {
+  preprocessCustomTags,
+  rewriteSelfClosingCustomTags,
+} from "../lib/preprocess-custom-tags";
 
 describe("preprocessCustomTags", () => {
   it("should return markdown unchanged when tagNames is empty", () => {
@@ -127,6 +130,13 @@ describe("preprocessCustomTags", () => {
   it("rewrites self-closing custom tags to an explicit empty pair", () => {
     const md = 'before <vfs-cite path="a.pdf" /> after';
     expect(preprocessCustomTags(md, ["vfs-cite"])).toBe(
+      'before <vfs-cite path="a.pdf" ></vfs-cite> after'
+    );
+  });
+
+  it("rewriteSelfClosingCustomTags expands /> without a blank-line sandwich", () => {
+    const md = 'before <vfs-cite path="a.pdf" /> after';
+    expect(rewriteSelfClosingCustomTags(md, ["vfs-cite"])).toBe(
       'before <vfs-cite path="a.pdf" ></vfs-cite> after'
     );
   });
