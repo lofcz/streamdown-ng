@@ -57,6 +57,7 @@ import {
 } from "./lib/remark/container-alerts";
 import { remarkDisableAutolinkProtocols } from "./lib/remark/disable-autolink-protocols";
 import { remarkGithubAlerts } from "./lib/remark/github-alerts";
+import { remarkInlineOrderedMarker } from "./lib/remark/inline-ordered-marker";
 import {
   type CalloutIconResolver,
   type CalloutStyleResolver,
@@ -414,6 +415,7 @@ export const defaultRemarkPlugins: Record<string, Pluggable> = {
   // callouts don't conflict — both transform blockquote nodes.
   containerAlerts: remarkContainerAlerts,
   codeMeta: remarkCodeMeta,
+  inlineOrderedMarker: remarkInlineOrderedMarker,
 } as const;
 
 // Stable plugin arrays for cache efficiency - created once at module level
