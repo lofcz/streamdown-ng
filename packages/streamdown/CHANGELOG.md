@@ -1,5 +1,27 @@
 # streamdown
 
+## 2.15.2
+
+### Patch Changes
+
+- 163c63b: fix(code-block): use absolute positioning for action buttons to fix click events in nested scroll containers
+
+  Switches the code block action button wrapper from `position: sticky` to
+  `position: absolute` (with `position: relative` on the container) so that
+  hit-testing works correctly in layouts with multiple nested `overflow: auto`
+  scroll containers. Previously, the `sticky` + `pointer-events-none/auto`
+  pattern caused browsers to mis-route click events to the code block wrapper
+  rather than the buttons when the component was embedded in 2+ nested scroll
+  containers.
+
+- c780970: Stop treating a number right after a list marker (`- 23. října`, `1. 23) foo`) as a nested ordered list. Per CommonMark it is one, but in streamed prose it is a date or a count, so the marker is folded back into the item text when the nested list is inline and has a single item. Deliberate nested lists on their own indented lines are unchanged.
+- fdf4e33: Fix Mermaid diagrams so text is readable and diagrams auto-fit container.
+  - Normalize SVG to remove responsive shrinking
+  - Extract intrinsic size from viewBox
+  - Add width-and-height auto-fit in PanZoom
+  - Preserve user zoom/pan after initial fit
+  - Add tests for SVG utilities and auto-fit behavior
+
 ## 2.15.1
 
 ### Patch Changes
