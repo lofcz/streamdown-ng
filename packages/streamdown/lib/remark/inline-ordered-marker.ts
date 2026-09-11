@@ -77,7 +77,10 @@ const foldMarker = (item: ListItem, list: List, source: string): void => {
       children: [{ type: "text", value: marker } as Text],
     };
     if (list.position) {
-      paragraph.position = { start: list.position.start, end: list.position.start };
+      paragraph.position = {
+        start: list.position.start,
+        end: list.position.start,
+      };
     }
     lead = [paragraph, ...nested.children];
   }
