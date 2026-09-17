@@ -1,5 +1,15 @@
 # streamdown
 
+## 2.16.0
+
+### Minor Changes
+
+- 5f3e66c: Add `fallbackComponent` for HTML tags and `allowedTags` entries that have no matching key in `components`. Built-in and explicit component entries still win.
+
+### Patch Changes
+
+- 5f3e66c: Escape `&`, `<`, and `>` in Markdown table exports so literal HTML and character entities survive copy/download and re-render.
+
 ## 2.15.3
 
 ### Patch Changes
