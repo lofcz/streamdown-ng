@@ -55,6 +55,7 @@ const CJK_AUTOLINK_BOUNDARY_CHARS = new Set<string>([
 ]);
 
 const AUTOLINK_PREFIX_PATTERN = /^(https?:\/\/|mailto:|www\.)/i;
+const NEXT_AUTOLINK_PATTERN = /https?:\/\/|mailto:|www\./i;
 
 const isAutolinkLiteral = (node: Link): node is Link & { children: [Text] } => {
   if (node.children.length !== 1) {
@@ -93,8 +94,53 @@ const buildTrailingText = (value: string): Text => ({
 });
 
 /**
+ * Expand a GFM autolink literal that may contain CJK punctuation into
+ * alternating link and text nodes, re-detecting bare URLs after each split.
+ *
+ * GFM treats `https://a.com；https://b.com` as one link. Splitting only at the
+ * first boundary would leave subsequent URLs as plain text; this walks the
+ * full string so each URL becomes its own link.
+ */
+const expandAutolinkAtCjkBoundaries = (
+  url: string,
+  source: Link
+): Array<Link | Text> => {
+  const nodes: Array<Link | Text> = [];
+  let remaining = url;
+
+  while (remaining.length > 0) {
+    if (AUTOLINK_PREFIX_PATTERN.test(remaining)) {
+      const boundaryIndex = findCjkBoundaryIndex(remaining);
+      if (boundaryIndex === null || boundaryIndex === 0) {
+        nodes.push(buildAutolink(remaining, source));
+        break;
+      }
+
+      nodes.push(buildAutolink(remaining.slice(0, boundaryIndex), source));
+      remaining = remaining.slice(boundaryIndex);
+      continue;
+    }
+
+    const nextUrlMatch = remaining.match(NEXT_AUTOLINK_PATTERN);
+    if (!nextUrlMatch || nextUrlMatch.index === undefined) {
+      nodes.push(buildTrailingText(remaining));
+      break;
+    }
+
+    if (nextUrlMatch.index > 0) {
+      nodes.push(buildTrailingText(remaining.slice(0, nextUrlMatch.index)));
+    }
+    remaining = remaining.slice(nextUrlMatch.index);
+  }
+
+  return nodes;
+};
+
+/**
  * Remark plugin to split literal autolinks at CJK punctuation boundaries
- * so trailing text is not swallowed by the URL.
+ * so trailing text is not swallowed by the URL. When trailing text contains
+ * further bare URLs (e.g. separated by fullwidth semicolons), those are
+ * re-linkified as well.
  */
 const remarkCjkAutolinkBoundary: Plugin<[], Root> = () => (tree) => {
   visit(
@@ -118,14 +164,9 @@ const remarkCjkAutolinkBoundary: Plugin<[], Root> = () => (tree) => {
         return;
       }
 
-      const trimmedUrl = node.url.slice(0, boundaryIndex);
-      const trailing = node.url.slice(boundaryIndex);
-
-      const trimmedLink = buildAutolink(trimmedUrl, node);
-      const trailingText = buildTrailingText(trailing);
-
-      parent.children.splice(index, 1, trimmedLink, trailingText);
-      return index + 1;
+      const nodes = expandAutolinkAtCjkBoundaries(node.url, node);
+      parent.children.splice(index, 1, ...nodes);
+      return index + nodes.length;
     }
   );
 };

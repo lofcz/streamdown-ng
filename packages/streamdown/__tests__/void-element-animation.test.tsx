@@ -9,8 +9,10 @@
  */
 
 import { act, render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Streamdown } from "../index";
+
+afterEach(() => vi.restoreAllMocks());
 
 const animated = {
   animation: "fadeIn" as const,
@@ -64,4 +66,28 @@ describe("void element animation (React render)", () => {
     expect(hr?.getAttribute("data-sd-animate")).not.toBeNull();
     expect(hr?.getAttribute("style") ?? "").toContain("--sd-animation");
   });
+});
+
+it("keeps the animated code wrapper when a streamed fence grows", async () => {
+  const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+  const prefix = "### Code example\n\n```js\nconst x = 1";
+  const { container, rerender } = await renderAnimated(prefix);
+  const code = container.querySelector('[data-streamdown="code-block"]');
+  const wrapper = code?.closest("[data-sd-animate]");
+  expect(wrapper).not.toBeNull();
+  const style = wrapper?.getAttribute("style");
+  expect(style).toContain("--sd-duration: 500ms");
+  expect(code?.querySelector("[data-sd-animate]")).toBeNull();
+
+  clock.mockReturnValue(1050);
+  rerender(
+    <Streamdown animated={animated} isAnimating={true}>
+      {`${prefix}\nconst y = 2\n\`\`\``}
+    </Streamdown>
+  );
+  await act(() => Promise.resolve());
+  expect(container.querySelector('[data-streamdown="code-block"]')).toBe(code);
+  expect(code?.closest("[data-sd-animate]")).toBe(wrapper);
+  expect(wrapper?.getAttribute("style")).toBe(style);
+  expect(code?.textContent).toContain("const y = 2");
 });
