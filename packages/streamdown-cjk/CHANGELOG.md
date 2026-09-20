@@ -1,5 +1,11 @@
 # @streamdown/cjk
 
+## 1.0.4
+
+### Patch Changes
+
+- 4d1d442: Re-linkify bare URLs that follow CJK punctuation when splitting GFM autolink literals (e.g. URLs separated by fullwidth semicolons).
+
 ## 1.0.3
 
 ### Patch Changes
