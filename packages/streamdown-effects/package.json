@@ -1,6 +1,6 @@
 {
   "name": "@lofcz/streamdown-effects",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Streaming text effects for Streamdown's animated prop",
   "repository": {
     "type": "git",

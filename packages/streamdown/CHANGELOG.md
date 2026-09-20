@@ -1,5 +1,53 @@
 # streamdown
 
+## 2.16.1
+
+### Patch Changes
+
+- 4d1d442: Accept animation effect objects in `animated.animation`.
+
+  An `AnimationEffect` bundles a keyframes name with the per-word behavior those keyframes need:
+
+  ```ts
+  interface AnimationEffect {
+    name: string; // @keyframes sd-<name>
+    duration?: number; // default; animated.duration overrides it
+    scatter?: number; // max extra delay per word, hashed from its position
+    decorate?: (text: string, seed: number) => Record<`data-${string}`, string>;
+  }
+  ```
+
+  `scatter` reveals words in a stable random order instead of left to right. `decorate` adds `data-*` attributes to each word while it animates, for effect styles to use. Other attributes are dropped. String animation names work as before.
+
+- 4d1d442: Add a `smooth` prop to pace streams that arrive in large chunks.
+
+  Some providers and relays deliver text in bursts, such as ~150 characters every ~500 ms, which renders as a jump followed by a pause. With `smooth`, Streamdown measures the time between arrivals and reveals each chunk a word at a time, so it finishes about when the next chunk is expected.
+
+  ```tsx
+  <Streamdown smooth isAnimating={status === "streaming"}>
+    {markdown}
+  </Streamdown>
+  ```
+
+  - Off by default. When off, rendering is unchanged.
+  - Only appends are paced. Resets, edits and full-text replacements render immediately, as does content present on mount.
+  - A word split across chunks is held until it's complete.
+  - With `animated`, `stagger` defaults to `0`, since pacing already spaces words out. An explicit `stagger` still applies.
+  - When `isAnimating` becomes `false`, the remaining text appears within 250 ms. Until then, caret, animation and incomplete-Markdown handling stay active, even if `mode` switches to `"static"` in the same update.
+  - Hidden tabs render immediately, since browsers pause animation frames there.
+
+- 4d1d442: Preserve pending and active word animations across streaming updates instead of setting their duration to zero before they finish. Apply the same timing to list markers, task checkboxes, images, and horizontal rules.
+
+  Allow finite text animations to finish after streaming stops before removing their wrappers. Cleanup follows browser animation completion, including cancellation, rather than using a fixed timeout.
+
+  Discard animation history for removed blocks and reset the timeline when content is cleared, so the first words of a replay animate again instead of appearing instantly.
+
+  Exclude parser-generated layout whitespace from animation offsets so new words inside lists receive their fade and tight-to-loose list transitions preserve existing text history. Source whitespace remains counted.
+
+  Animate fenced code as one unit on the shared timeline, preserving its fade while code and syntax highlighting update.
+
+  Use one timestamp per render pass when scheduling blocks, so parsing time cannot let later blocks overtake earlier text.
+
 ## 2.16.0
 
 ### Minor Changes
