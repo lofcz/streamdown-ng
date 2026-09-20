@@ -15,6 +15,7 @@
     "@orama/tokenizers": "^3.1.16",
     "@streamdown/ascii": "workspace:@lofcz/streamdown-ascii@*",
     "@streamdown/cjk": "workspace:@lofcz/streamdown-cjk@*",
+    "@streamdown/effects": "workspace:@lofcz/streamdown-effects@*",
     "@streamdown/code": "workspace:@lofcz/streamdown-code@*",
     "@streamdown/math": "workspace:@lofcz/streamdown-math@*",
     "@streamdown/mermaid": "workspace:@lofcz/streamdown-mermaid@*",

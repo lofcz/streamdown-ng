@@ -1400,14 +1400,13 @@ export const components: Options["components"] = {
   code: MemoCode,
   div: MemoDiv,
   img: MemoImg,
-  pre: ({ children }) => {
-    if (isValidElement(children)) {
-      return cloneElement(children, {
-        "data-block": "true",
-      } as Partial<unknown>);
-    }
-    return children;
-  },
+  pre: ({ children, node: _node, ...props }) => (
+    <div {...(props as HTMLAttributes<HTMLDivElement>)}>
+      {isValidElement(children)
+        ? cloneElement(children, { "data-block": "true" } as Partial<unknown>)
+        : children}
+    </div>
+  ),
   sup: MemoSup,
   sub: MemoSub,
   p: MemoParagraph,

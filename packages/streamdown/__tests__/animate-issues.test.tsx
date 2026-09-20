@@ -8,12 +8,14 @@
  */
 import { act, render } from "@testing-library/react";
 import { StrictMode, useEffect } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Streamdown } from "../index";
 import { MAX_ANIMATION_BACKLOG_MS } from "../lib/animate";
 
 const NEW_WORD_RE = /^(Next|section|arrives)$/;
 const SPAN_GAP_RE = /<\/span> <span/;
+
+afterEach(() => vi.restoreAllMocks());
 
 const parseDelay = (el: Element): number => {
   const raw = (el as HTMLElement).style.getPropertyValue("--sd-delay").trim();
@@ -25,6 +27,7 @@ const parseDelay = (el: Element): number => {
 
 describe("issue #482 — cross-block stagger serialization", () => {
   it("delays a new block's first word past the previous block's cascade", async () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
     const config = {
       animation: "fadeIn" as const,
       duration: 150,
@@ -44,6 +47,7 @@ describe("issue #482 — cross-block stagger serialization", () => {
     expect(firstPass.length).toBeGreaterThanOrEqual(5);
     expect(Math.max(...firstPass.map(parseDelay))).toBeGreaterThan(0);
 
+    clock.mockReturnValue(1010);
     await act(() => {
       rerender(
         <Streamdown animated={config} isAnimating={true} mode="streaming">
@@ -70,6 +74,7 @@ describe("issue #482 — cross-block stagger serialization", () => {
   // A four-item shortlist is ~25 words. Compression fits the cascade into the
   // backlog budget while keeping the next block ordered after the list.
   it("compresses a realistic list and keeps the heading ordered after it", async () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
     const config = { animation: "fadeIn" as const, duration: 150, stagger: 40 };
     const list = [
       "- Latency under 200ms p95 in us-east-1",
@@ -94,6 +99,7 @@ describe("issue #482 — cross-block stagger serialization", () => {
     // Compressed into the budget (uncapped would be ~1s). Allow +1 for rounding.
     expect(listEndsAt).toBeLessThanOrEqual(MAX_ANIMATION_BACKLOG_MS + 1);
 
+    clock.mockReturnValue(1010);
     await act(() => {
       rerender(
         <Streamdown animated={config} isAnimating={true} mode="streaming">
@@ -257,7 +263,8 @@ describe("issue #570 — spans come off when isAnimating goes false", () => {
     expect(mounts).toBe(1);
   });
 
-  it("suppresses already-seen words under StrictMode double-invoke", async () => {
+  it("suppresses settled words under StrictMode double-invoke", async () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
     const config = {
       animation: "fadeIn" as const,
       duration: 200,
@@ -276,6 +283,7 @@ describe("issue #570 — spans come off when isAnimating goes false", () => {
     await act(() => Promise.resolve());
     await act(() => Promise.resolve());
 
+    clock.mockReturnValue(1250);
     await act(() => {
       rerender(
         <StrictMode>
@@ -292,7 +300,7 @@ describe("issue #570 — spans come off when isAnimating goes false", () => {
       container.querySelectorAll("[data-sd-animate]")
     ) as HTMLElement[];
 
-    // "one"/"two"/"three" should have duration 0 (already seen); "four"/"five"
+    // "one"/"two"/"three" should have duration 0 (finished); "four"/"five"
     // keep the configured duration. Under the old get-and-reset path, StrictMode
     // would wipe prevContentLength and every span would be 200ms.
     const durations = spans.map((el) =>

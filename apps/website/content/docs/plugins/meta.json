@@ -10,6 +10,7 @@
     "openscad",
     "math",
     "cjk",
-    "ascii"
+    "ascii",
+    "effects"
   ]
 }

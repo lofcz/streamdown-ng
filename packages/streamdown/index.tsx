@@ -86,9 +86,11 @@ import {
   type StreamdownTranslations,
   TranslationsContext,
 } from "./lib/translations-context";
+import { useAnimationDrain } from "./lib/use-animation-drain";
+import { useSmoothStream } from "./lib/use-smooth-stream";
 import { createCn } from "./lib/utils";
 
-export type { AnimateOptions } from "./lib/animate";
+export type { AnimateOptions, AnimationEffect } from "./lib/animate";
 // biome-ignore lint/performance/noBarrelFile: "required"
 export { createAnimateCursor, createAnimatePlugin } from "./lib/animate";
 export { useIsCodeFenceIncomplete } from "./lib/block-incomplete-context";
@@ -255,6 +257,16 @@ export type StreamdownProps = Options & {
   scrollable?: ScrollableComponent;
   tableMaxHeight?: number | string;
   animated?: boolean | AnimateOptions;
+  /**
+   * Pace bursty streams. Text that arrives in large chunks is revealed a word
+   * at a time at the rate it has been arriving, instead of all at once.
+   * Adds roughly one chunk interval of display latency. Uses `isAnimating`
+   * to know when the stream ends. Until the held-back text is shown,
+   * Streamdown stays in streaming mode (caret, animation, incomplete-Markdown
+   * handling) even if `mode` is `"static"`, and `onAnimationEnd` waits for
+   * it. @default false
+   */
+  smooth?: boolean;
   caret?: keyof typeof carets;
   /** Bullet style cycling for nested unordered lists. @default "hierarchical" */
   listStyle?: ListStylePreset;
@@ -508,6 +520,30 @@ const defaultLinkSafetyConfig: LinkSafetyConfig = {
   enabled: true,
 };
 
+const getAnimatedKey = (
+  animated: StreamdownProps["animated"],
+  smooth: boolean
+): string => {
+  if (!animated) {
+    return "";
+  }
+  const options = animated === true ? "true" : JSON.stringify(animated);
+  // Block plugins bake in a stagger default that depends on smooth.
+  return smooth ? `${options}:smooth` : options;
+};
+
+/** Options for one block's animate plugin; maxBacklogMs goes to the timeline. */
+const getBlockAnimateOptions = (
+  animated: StreamdownProps["animated"],
+  smooth: boolean
+): AnimateOptions => {
+  const { maxBacklogMs: _, ...options }: AnimateOptions =
+    typeof animated === "object" ? animated : {};
+  // Smooth already spaces words out; a stagger would queue them a second
+  // time behind the reveal.
+  return { ...options, stagger: options.stagger ?? (smooth ? 0 : undefined) };
+};
+
 export type BlockProps = Options & {
   content: string;
   shouldParseIncompleteMarkdown: boolean;
@@ -545,11 +581,6 @@ export const Block = memo(
     useLayoutEffect(() => {
       animatePluginProp?.commit();
     });
-    // When the block has an incomplete code fence, animate code block
-    // content incrementally instead of skipping it. This gives visual
-    // feedback that code is streaming in token-by-token.
-    animatePluginProp?.setAnimateCodeBlocks(isIncomplete);
-
     // Note: remend is applied to the trailing block only (in Streamdown), so we
     // don't need to apply it again here
     const normalizedContent =
@@ -637,7 +668,7 @@ Block.displayName = "Block";
 export const Streamdown = memo(
   ({
     children,
-    mode = "streaming",
+    mode: modeProp = "streaming",
     dir,
     parseIncompleteMarkdown: shouldParseIncompleteMarkdown = true,
     normalizeHtmlIndentation: shouldNormalizeHtmlIndentation = false,
@@ -654,10 +685,11 @@ export const Streamdown = memo(
     diagrams,
     codeBlockMaxHeight = 400,
     controls = true,
-    isAnimating = false,
+    isAnimating: isAnimatingProp = false,
     scrollable,
     tableMaxHeight = 300,
     animated,
+    smooth = false,
     BlockComponent = Block,
     parseMarkdownIntoBlocksFn = parseMarkdownIntoBlocks,
     caret,
@@ -683,6 +715,17 @@ export const Streamdown = memo(
   }: StreamdownProps) => {
     // All hooks must be called before any conditional returns
     const generatedId = useId();
+
+    const {
+      text: smoothed,
+      isAnimating,
+      mode,
+    } = useSmoothStream({
+      children,
+      isAnimating: isAnimatingProp,
+      mode: modeProp,
+      smooth,
+    });
 
     const prefixedCn = useMemo(() => createCn(prefix), [prefix]);
 
@@ -755,7 +798,7 @@ export const Streamdown = memo(
       if (typeof children !== "string") {
         return "";
       }
-      let result = children;
+      let result = smoothed;
 
       // Escape markdown metacharacters inside literal-tag-content tags so that
       // children are rendered as plain text rather than parsed as markdown.
@@ -793,6 +836,7 @@ export const Streamdown = memo(
       children,
       markdownContainerTagNames,
       literalTagContent,
+      smoothed,
     ]);
 
     const blocks = useMemo(() => {
@@ -834,15 +878,13 @@ export const Streamdown = memo(
     // plugin from being recreated when the user passes an inline object
     // literal (e.g. animated={{ animation: 'fadeIn' }}) whose reference
     // changes on every parent render.
-    const animatedKey = useMemo(() => {
-      if (animated === true) {
-        return "true";
-      }
-      if (animated) {
-        return JSON.stringify(animated);
-      }
-      return "";
-    }, [animated]);
+    const animatedKey = useMemo(
+      () => getAnimatedKey(animated, smooth),
+      [animated, smooth]
+    );
+
+    const { containerRef: animationContainerRef, animateText } =
+      useAnimationDrain(isAnimating, animatedKey, mode, children);
 
     // Shared wall-clock timeline: serializes stagger delays across sibling
     // blocks AND across streaming ticks (memoized earlier blocks don't
@@ -860,9 +902,7 @@ export const Streamdown = memo(
       if (prevAnimatedKeyRef.current !== animatedKey) {
         prevAnimatedKeyRef.current = animatedKey;
         const backlog =
-          animatedKey !== "true"
-            ? (animated as AnimateOptions).maxBacklogMs
-            : undefined;
+          typeof animated === "object" ? animated.maxBacklogMs : undefined;
         animateTimelineRef.current = createAnimateTimeline({
           maxBacklogMs: backlog,
         });
@@ -871,7 +911,7 @@ export const Streamdown = memo(
       } else if (!animateTimelineRef.current) {
         animateTimelineRef.current = createAnimateTimeline();
       }
-      if (isAnimating && animateTimelineRef.current) {
+      if (animateText && animateTimelineRef.current) {
         animateTimelineRef.current.beginPass(animateTimelineRef.current.now());
       }
     } else {
@@ -880,15 +920,6 @@ export const Streamdown = memo(
       blockRehypePluginsRef.current = [];
       prevAnimatedKeyRef.current = "";
     }
-
-    // Commit the in-flight pass horizon after paint. Discarded concurrent
-    // renders that called beginPass never reach this effect, so they can't
-    // poison nextStartAt.
-    useLayoutEffect(() => {
-      if (isAnimating) {
-        animateTimelineRef.current?.commitPass();
-      }
-    });
 
     // Defer the blocks reference during streaming so React can drop intermediate
     // values under load. Replaces the previous useState+useEffect+startTransition
@@ -927,6 +958,30 @@ export const Streamdown = memo(
       merged[deferredLen - 1] = blocks[freshLen - 1];
       return merged;
     }, [blocks, deferredBlocks, mode]);
+
+    // Commit the in-flight pass horizon after paint. Discarded concurrent
+    // renders that called beginPass never reach this effect, so they can't
+    // poison nextStartAt.
+    useLayoutEffect(() => {
+      // Removed blocks have no DOM animations to preserve. Keeping their
+      // history makes a replay's first words look already settled.
+      blockAnimatePluginsRef.current.length = Math.min(
+        blockAnimatePluginsRef.current.length,
+        blocksToRender.length
+      );
+      blockRehypePluginsRef.current.length = Math.min(
+        blockRehypePluginsRef.current.length,
+        blocksToRender.length
+      );
+      if (blocksToRender.length === 0) {
+        animateTimelineRef.current = null;
+        prevAnimatedKeyRef.current = "";
+        return;
+      }
+      if (animateText) {
+        animateTimelineRef.current?.commitPass();
+      }
+    });
 
     // Pre-compute per-block text directions when dir="auto" so detection
     // runs once per block change rather than on every render pass.
@@ -1194,16 +1249,11 @@ export const Streamdown = memo(
       blockRehypePlugins: Pluggable[];
     } => {
       let blockAnimatePlugin: AnimatePlugin | null = null;
-      if (animateTimelineRef.current && isAnimating) {
+      if (animateTimelineRef.current && animateText) {
         if (!blockAnimatePluginsRef.current[index]) {
           // maxBacklogMs is consumed by the timeline factory, not the plugin.
-          const rawOpts =
-            animatedKey && animatedKey !== "true"
-              ? (animated as AnimateOptions)
-              : ({} as AnimateOptions);
-          const { maxBacklogMs: _, ...pluginOpts } = rawOpts;
           blockAnimatePluginsRef.current[index] = createAnimatePlugin({
-            ...pluginOpts,
+            ...getBlockAnimateOptions(animated, smooth),
             timeline: animateTimelineRef.current,
           });
         }
@@ -1278,6 +1328,7 @@ export const Streamdown = memo(
                     className
                   )}
                   data-streamdown="container"
+                  ref={animationContainerRef}
                   style={style}
                 >
                   {blocksToRender.length === 0 && caret && isAnimating && (
@@ -1328,6 +1379,7 @@ export const Streamdown = memo(
     prevProps.shikiTheme === nextProps.shikiTheme &&
     prevProps.isAnimating === nextProps.isAnimating &&
     prevProps.animated === nextProps.animated &&
+    prevProps.smooth === nextProps.smooth &&
     prevProps.mode === nextProps.mode &&
     prevProps.plugins === nextProps.plugins &&
     prevProps.className === nextProps.className &&
