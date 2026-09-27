@@ -24,14 +24,9 @@ export const CodeBlockContainer = ({
       data-incomplete={isIncomplete || undefined}
       data-language={language}
       data-streamdown="code-block"
-      style={{
-        // Use content-visibility to skip rendering off-screen blocks
-        // This can significantly improve performance for large documents
-        contentVisibility: "auto",
-        // Provide a hint for layout to prevent layout shifts
-        containIntrinsicSize: "auto 200px",
-        ...style,
-      }}
+      // Keep real off-screen geometry: estimated content-visibility heights
+      // change the parent scroll range as blocks enter view, jumping its thumb.
+      style={style}
       {...props}
     />
   );
