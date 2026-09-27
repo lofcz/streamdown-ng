@@ -421,21 +421,37 @@ const splitByChar = (text: string): string[] => {
   return parts;
 };
 
+const plainStyleValue = /^[^\s;:'"\\/](?:[^;:'"\\/\r\n]*[^\s;:'"\\/])?$/;
+
 const makeSpan = (
   word: string,
   animation: string,
   duration: number,
   easing: string,
   delay?: number,
-  attributes?: Record<string, string>
+  attributes?: Record<string, string>,
+  styleObjects = false
 ): Element => {
-  let style = `--sd-animation:sd-${animation};--sd-duration:${duration}ms;--sd-easing:${easing}`;
-  if (delay) {
-    style += `;--sd-delay:${Math.round(delay)}ms`;
+  let style: string | Record<string, string>;
+  if (styleObjects) {
+    style = {
+      "--sd-animation": `sd-${animation}`,
+      "--sd-duration": `${duration}ms`,
+      "--sd-easing": easing,
+    };
+    if (delay) {
+      style["--sd-delay"] = `${Math.round(delay)}ms`;
+    }
+  } else {
+    style = `--sd-animation:sd-${animation};--sd-duration:${duration}ms;--sd-easing:${easing}`;
+    if (delay) {
+      style += `;--sd-delay:${Math.round(delay)}ms`;
+    }
   }
   const properties: Element["properties"] = {
     "data-sd-animate": true,
-    style,
+    // React accepts style objects; external HAST consumers still get strings.
+    style: style as string,
   };
   for (const [key, value] of Object.entries(attributes ?? {})) {
     // Effects run after sanitization, so only data attributes pass through.
@@ -461,6 +477,7 @@ interface AnimateConfig {
   seed: number;
   sep: "word" | "char";
   stagger: number;
+  styleObjects: boolean;
   timeline?: AnimateTimeline;
 }
 
@@ -655,7 +672,8 @@ const processTextNode = (
       timing.delay,
       config.decorate && timing.duration > 0
         ? config.decorate(part.trimEnd(), config.seed * 100_003 + partStart)
-        : undefined
+        : undefined,
+      config.styleObjects
     );
   });
 
@@ -676,6 +694,17 @@ let instanceId = 0;
 export function createAnimatePlugin(
   options?: AnimateOptions & { timeline?: AnimateTimeline }
 ): AnimatePlugin {
+  return buildAnimatePlugin(options, false);
+}
+
+export const createRenderAnimatePlugin = (
+  options?: AnimateOptions & { timeline?: AnimateTimeline }
+): AnimatePlugin => buildAnimatePlugin(options, true);
+
+function buildAnimatePlugin(
+  options: (AnimateOptions & { timeline?: AnimateTimeline }) | undefined,
+  styleObjects: boolean
+): AnimatePlugin {
   const id = instanceId++;
   const animation = options?.animation ?? "fadeIn";
   const effect = typeof animation === "string" ? undefined : animation;
@@ -686,6 +715,12 @@ export function createAnimatePlugin(
     easing: options?.easing ?? "ease",
     scatter: effect?.scatter ?? 0,
     seed: id,
+    styleObjects:
+      styleObjects &&
+      plainStyleValue.test(
+        typeof animation === "string" ? animation : animation.name
+      ) &&
+      plainStyleValue.test(options?.easing ?? "ease"),
     sep: options?.sep ?? "word",
     stagger: options?.stagger ?? 40,
     timeline: options?.timeline,

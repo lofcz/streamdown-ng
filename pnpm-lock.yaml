@@ -384,8 +384,8 @@ importers:
         specifier: ^11.1.2
         version: 11.1.2
       remend:
-        specifier: npm:@lofcz/remend@^1.3.0
-        version: '@lofcz/remend@1.3.1'
+        specifier: workspace:@lofcz/remend@^
+        version: link:../remend
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -1652,9 +1652,6 @@ packages:
 
   '@lofcz/remark-gfm@4.0.1':
     resolution: {integrity: sha512-RzjeWkrs/rr638jzpTo/aqUUwUg9HNihlTDrupmSILqVI3ZtO1YUu3nTM126j8wEpw2ftc3pscDidXNQaOwXUw==}
-
-  '@lofcz/remend@1.3.1':
-    resolution: {integrity: sha512-jclxXENMQnsySvt+R27mN8d5slFnHnH15Jr2AZPrzSt+vFOyksq5lKQ9HBupNm0E6GhKvDpCrvvcnnfdB5qbHg==}
 
   '@manypkg/find-root@1.1.0':
     resolution: {integrity: sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA==}
@@ -7935,8 +7932,6 @@ snapshots:
       unified: 11.0.5
     transitivePeerDependencies:
       - supports-color
-
-  '@lofcz/remend@1.3.1': {}
 
   '@manypkg/find-root@1.1.0':
     dependencies:

@@ -40,6 +40,8 @@ export const usePinnedScroll = ({
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const pinnedRef = useRef(true);
   const lastScrollTopRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+  const wasAnimatingRef = useRef(false);
 
   const scrollRef = useCallback<RefCallback<HTMLDivElement>>((node) => {
     setElement((current) => (current === node ? current : node));
@@ -47,19 +49,25 @@ export const usePinnedScroll = ({
 
   const pinToBottom = useCallback(
     (el: HTMLDivElement) => {
-      if (!(isAnimating && pinnedRef.current)) {
+      if (!(isAnimating && pinnedRef.current) || frameRef.current !== null) {
         return;
       }
-      el.scrollTo({ top: el.scrollHeight, behavior: "instant" });
-      lastScrollTopRef.current = el.scrollTop;
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = null;
+        if (pinnedRef.current) {
+          el.scrollTo({ top: el.scrollHeight, behavior: "instant" });
+          lastScrollTopRef.current = el.scrollTop;
+        }
+      });
     },
     [isAnimating]
   );
 
-  useEffect(() => {
-    if (!isAnimating) {
+  useLayoutEffect(() => {
+    if (isAnimating && !wasAnimatingRef.current) {
       pinnedRef.current = true;
     }
+    wasAnimatingRef.current = isAnimating;
   }, [isAnimating]);
 
   useEffect(() => {
@@ -137,6 +145,19 @@ export const usePinnedScroll = ({
       element.removeEventListener("scroll", handleScroll);
     };
   }, [enabled, element]);
+
+  // Cancel queued work when the viewport disappears or scrolling is disabled.
+  // A stream ending alone keeps its final pin, unless the user detached.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: viewport changes and disabling must cancel queued work
+  useLayoutEffect(
+    () => () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    },
+    [element, enabled]
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `content` is the streaming invalidation key (tokens / rows) and is not read inside the effect
   useLayoutEffect(() => {

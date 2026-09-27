@@ -6,8 +6,10 @@ import {
   bundledLanguages,
   bundledLanguagesInfo,
   createHighlighter,
+  type GrammarState,
   type HighlighterGeneric,
   type SpecialLanguage,
+  type ThemedToken,
   type ThemeRegistrationAny,
   type TokensResult,
 } from "shiki";
@@ -103,6 +105,111 @@ const highlighterCache = new Map<
 
 // Token cache
 const tokensCache = new Map<string, TokensResult>();
+const MAX_TOKEN_RESULTS = 64;
+
+/**
+ * Tokenization state carried between highlight requests of one highlighter.
+ *
+ * While a code block streams, each request extends the previous one. TextMate
+ * grammars tokenize line by line with a state stack, so the completed lines of
+ * the previous request tokenize identically in the next one. Only the lines
+ * completed since then and the trailing partial line are tokenized; the rest
+ * reuses the previous token rows.
+ */
+interface IncrementalState {
+  /** Grammar state after the last line of `prefix` */
+  grammarState: GrammarState | undefined;
+  /** The completed-line prefix of the previous code (ends with a newline) */
+  prefix: string;
+  /** Token rows for the lines in `prefix` */
+  rows: ThemedToken[][];
+}
+
+// Recent incremental states per highlighter (language + themes), most recent
+// first. A few slots let blocks that stream at the same time in different
+// renderers each pick up their own state instead of evicting each other.
+const incrementalStates = new Map<string, IncrementalState[]>();
+const MAX_INCREMENTAL_STATES = 4;
+
+const takeIncrementalState = (
+  stateKey: string,
+  code: string
+): IncrementalState | undefined => {
+  const states = incrementalStates.get(stateKey);
+  if (!states) {
+    return;
+  }
+  const index = states.findIndex((state) => code.startsWith(state.prefix));
+  return index === -1 ? undefined : states.splice(index, 1)[0];
+};
+
+const storeIncrementalState = (
+  stateKey: string,
+  state: IncrementalState
+): void => {
+  let states = incrementalStates.get(stateKey);
+  if (!states) {
+    states = [];
+    incrementalStates.set(stateKey, states);
+  }
+  states.unshift(state);
+  if (states.length > MAX_INCREMENTAL_STATES) {
+    states.pop();
+  }
+};
+
+const shiftOffsets = (rows: ThemedToken[][], by: number): void => {
+  if (by === 0) {
+    return;
+  }
+  for (const row of rows) {
+    for (const token of row) {
+      token.offset += by;
+    }
+  }
+};
+
+const tokenize = (
+  highlighter: HighlighterGeneric<BundledLanguage, BundledTheme>,
+  code: string,
+  stateKey: string,
+  lang: BundledLanguage | SpecialLanguage,
+  themes: { light: string; dark: string }
+): TokensResult => {
+  const state = takeIncrementalState(stateKey, code);
+  let prefix = state ? state.prefix : "";
+  let rows = state ? state.rows : [];
+  let grammarState = state?.grammarState;
+
+  // Tokenize the lines completed since the previous request, carrying the
+  // grammar state over so the result matches a full tokenization.
+  const lineEnd = code.lastIndexOf("\n") + 1;
+  if (lineEnd > prefix.length) {
+    const completed = highlighter.codeToTokens(
+      code.slice(prefix.length, lineEnd),
+      { lang, themes, grammarState }
+    );
+    const newRows = completed.tokens;
+    // The trailing newline yields an empty row that belongs to the next line
+    newRows.pop();
+    shiftOffsets(newRows, prefix.length);
+    rows = rows.concat(newRows);
+    grammarState = completed.grammarState;
+    prefix = code.slice(0, lineEnd);
+    storeIncrementalState(stateKey, { grammarState, prefix, rows });
+  } else if (state) {
+    storeIncrementalState(stateKey, state);
+  }
+
+  // The partial last line is tokenized on every request
+  const tail = highlighter.codeToTokens(code.slice(lineEnd), {
+    lang,
+    themes,
+    grammarState,
+  });
+  shiftOffsets(tail.tokens, lineEnd);
+  return { ...tail, tokens: rows.concat(tail.tokens) };
+};
 
 // Subscribers for async token updates
 const subscribers = new Map<string, Set<(result: TokensResult) => void>>();
@@ -110,19 +217,33 @@ const subscribers = new Map<string, Set<(result: TokensResult) => void>>();
 const getThemeName = (theme: ThemeInput): string =>
   typeof theme === "string" ? theme : (theme.name ?? "custom");
 
+const themeIds = new WeakMap<ThemeRegistrationAny, number>();
+let nextThemeId = 0;
+const getThemeCacheKey = (theme: ThemeInput): string => {
+  if (typeof theme === "string") {
+    return theme;
+  }
+  let id = themeIds.get(theme);
+  if (id === undefined) {
+    id = nextThemeId++;
+    themeIds.set(theme, id);
+  }
+  return `custom:${id}`;
+};
+
 const getHighlighterCacheKey = (
   language: BundledLanguage | SpecialLanguage,
   themes: [ThemeInput, ThemeInput]
-) => `${language}-${getThemeName(themes[0])}-${getThemeName(themes[1])}`;
+) => JSON.stringify([language, ...themes.map(getThemeCacheKey)]);
 
 const getTokensCacheKey = (
   code: string,
   language: string,
   themeNames: [string, string]
 ) => {
-  const start = code.slice(0, 100);
-  const end = code.length > 100 ? code.slice(-100) : "";
-  return `${language}:${themeNames[0]}:${themeNames[1]}:${code.length}:${start}:${end}`;
+  // Include the entire source: same-length edits in the middle must not hit
+  // a cached result for different code.
+  return JSON.stringify([language, themeNames, code]);
 };
 
 const getHighlighter = (
@@ -187,7 +308,7 @@ export function createCodePlugin(
       const tokensCacheKey = getTokensCacheKey(
         code,
         resolvedLanguage,
-        themeNames
+        themes.map(getThemeCacheKey) as [string, string]
       );
 
       // Return cached result if available
@@ -223,16 +344,22 @@ export function createCodePlugin(
               : "text"
           ) as BundledLanguage | SpecialLanguage;
 
-          const result = highlighter.codeToTokens(code, {
-            lang: langToUse,
-            themes: {
-              light: themeNames[0],
-              dark: themeNames[1],
-            },
-          });
+          const result = tokenize(
+            highlighter,
+            code,
+            `${getHighlighterCacheKey(safeLanguage, themes)}:${langToUse}`,
+            langToUse,
+            { light: themeNames[0], dark: themeNames[1] }
+          );
 
           // Cache the result
           tokensCache.set(tokensCacheKey, result);
+          if (tokensCache.size > MAX_TOKEN_RESULTS) {
+            const oldest = tokensCache.keys().next().value;
+            if (oldest !== undefined) {
+              tokensCache.delete(oldest);
+            }
+          }
 
           // Notify all subscribers
           const subs = subscribers.get(tokensCacheKey);

@@ -92,7 +92,7 @@ const renderMermaidWithAutoFix = async (
   }
 };
 
-export const toSvgDiagramPlugin = (
+const createSvgDiagramPlugin = (
   plugin: NamedDiagramPlugin
 ): SvgDiagramPlugin => {
   if (isMermaidPlugin(plugin)) {
@@ -156,6 +156,19 @@ export const toSvgDiagramPlugin = (
   }
 
   return plugin;
+};
+
+const adapters = new WeakMap<NamedDiagramPlugin, SvgDiagramPlugin>();
+
+export const toSvgDiagramPlugin = (
+  plugin: NamedDiagramPlugin
+): SvgDiagramPlugin => {
+  let adapter = adapters.get(plugin);
+  if (!adapter) {
+    adapter = createSvgDiagramPlugin(plugin);
+    adapters.set(plugin, adapter);
+  }
+  return adapter;
 };
 
 export const collectDiagramPlugins = (

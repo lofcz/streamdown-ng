@@ -56,10 +56,14 @@ describe("Caret Feature", () => {
 
       // Check that the wrapper has the caret-related classes
       const className = wrapper?.className || "";
-      expect(className).toContain("[&>*:last-child]:after:inline");
-      expect(className).toContain("[&>*:last-child]:after:align-baseline");
       expect(className).toContain(
-        "[&>*:last-child]:after:content-[var(--streamdown-caret)]"
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:align-baseline"
+      );
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:content-[var(--streamdown-caret)]"
       );
 
       // Check that the CSS custom property is set
@@ -79,10 +83,14 @@ describe("Caret Feature", () => {
 
       // Check that the wrapper has the caret-related classes
       const className = wrapper?.className || "";
-      expect(className).toContain("[&>*:last-child]:after:inline");
-      expect(className).toContain("[&>*:last-child]:after:align-baseline");
       expect(className).toContain(
-        "[&>*:last-child]:after:content-[var(--streamdown-caret)]"
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:align-baseline"
+      );
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:content-[var(--streamdown-caret)]"
       );
 
       // Check that the CSS custom property is set
@@ -100,10 +108,14 @@ describe("Caret Feature", () => {
 
       // Check that the wrapper does NOT have the caret-related classes
       const className = wrapper?.className || "";
-      expect(className).not.toContain("[&>*:last-child]:after:inline");
-      expect(className).not.toContain("[&>*:last-child]:after:align-baseline");
       expect(className).not.toContain(
-        "[&>*:last-child]:after:content-[var(--streamdown-caret)]"
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
+      expect(className).not.toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:align-baseline"
+      );
+      expect(className).not.toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:content-[var(--streamdown-caret)]"
       );
 
       // Check that the style is not set
@@ -254,7 +266,9 @@ describe("Caret Feature", () => {
       // In static mode, the caret classes and styles are not applied
       // because static mode uses a different rendering path
       const className = wrapper?.className || "";
-      expect(className).not.toContain("[&>*:last-child]:after:inline");
+      expect(className).not.toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
     });
   });
 
@@ -446,10 +460,14 @@ const x = 1;
       const className = wrapper?.className || "";
 
       // Verify all three caret-related classes are present
-      expect(className).toContain("[&>*:last-child]:after:inline");
-      expect(className).toContain("[&>*:last-child]:after:align-baseline");
       expect(className).toContain(
-        "[&>*:last-child]:after:content-[var(--streamdown-caret)]"
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:align-baseline"
+      );
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:content-[var(--streamdown-caret)]"
       );
     });
 
@@ -462,10 +480,14 @@ const x = 1;
       const className = wrapper?.className || "";
 
       // Verify caret-related classes are NOT present
-      expect(className).not.toContain("[&>*:last-child]:after:inline");
-      expect(className).not.toContain("[&>*:last-child]:after:align-baseline");
       expect(className).not.toContain(
-        "[&>*:last-child]:after:content-[var(--streamdown-caret)]"
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
+      expect(className).not.toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:align-baseline"
+      );
+      expect(className).not.toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:content-[var(--streamdown-caret)]"
       );
     });
 
@@ -488,7 +510,9 @@ const x = 1;
       expect(className).toContain("another-class");
 
       // And caret classes are added
-      expect(className).toContain("[&>*:last-child]:after:inline");
+      expect(className).toContain(
+        "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline"
+      );
     });
   });
 

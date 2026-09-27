@@ -195,6 +195,5 @@
 }
 
 @utility material-menu {
-  box-shadow: var(--ds-shadow-menu);
-  @apply bg-background-100 rounded-[12px];
+  @apply bg-popover rounded-[12px] shadow-lg;
 }

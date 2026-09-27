@@ -114,6 +114,8 @@ const lineEndingPattern = /\r\n|\r/g;
 const lexBlocks = (markdown: string): Token[] =>
   new Lexer({ gfm: true }).blockTokens(markdown);
 
+const linkDefinitionPattern = /^ {0,3}\[[^\]]+\]:/m;
+
 const blankLineEnding = "\n\n";
 
 // Streaming appends text to the end of the document. Text before the tail can
@@ -317,7 +319,13 @@ export const parseMarkdownIntoBlocksIncremental = (
   prev: IncrementalParseState | null | undefined,
   parseFn: (value: string) => string[] = parseMarkdownIntoBlocks
 ): IncrementalParseState => {
-  if (!(prev?.source && markdown.startsWith(prev.source))) {
+  if (
+    !(
+      prev?.source &&
+      markdown.length >= prev.source.length &&
+      markdown.slice(0, prev.source.length) === prev.source
+    )
+  ) {
     return fullParseState(markdown, parseFn);
   }
 
@@ -327,7 +335,10 @@ export const parseMarkdownIntoBlocksIncremental = (
 
   // Footnotes must share one mdast tree. Detect them on the full document
   // so a reference in the prefix is not split from a definition in the tail.
-  if (parseFn === parseMarkdownIntoBlocks && hasFootnotes(markdown)) {
+  if (
+    parseFn === parseMarkdownIntoBlocks &&
+    (hasFootnotes(markdown) || linkDefinitionPattern.test(markdown))
+  ) {
     return fullParseState(markdown, parseFn);
   }
 

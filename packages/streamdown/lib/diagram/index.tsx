@@ -3,13 +3,12 @@ import { useDeferredRender } from "../../hooks/use-deferred-render";
 import { StreamdownContext } from "../../index";
 import { useIsCodeFenceIncomplete } from "../block-incomplete-context";
 import { PanZoom } from "../mermaid/pan-zoom";
-import { getMermaidSvgSize, normalizeMermaidInlineSvg } from "../mermaid/utils";
 import type { SvgDiagramPlugin } from "../plugin-types";
 import { useCn } from "../prefix-context";
 import { useTranslations } from "../translations-context";
 import { getDiagramOptions } from "./context";
 import { diagramLabel } from "./labels";
-import { buildDiagramRenderOptions } from "./options";
+import { useDiagramRender } from "./use-diagram-render";
 
 /**
  * Vega (JSON) and SMILES error on every prefix of a streaming fence.
@@ -42,14 +41,9 @@ export const Diagram = ({
   const cn = useCn();
   const t = useTranslations();
   const name = plugin?.name ?? fallbackName ?? "diagram";
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [svgContent, setSvgContent] = useState<string>("");
-  const [svgSize, setSvgSize] = useState<{
-    height: number;
-    width: number;
-  } | null>(null);
-  const [lastValidSvg, setLastValidSvg] = useState<string>("");
+  const { error, setError, isLoading, svgContent, svgSize, requestRender } =
+    useDiagramRender();
+  const lastValidSvg = svgContent;
   const [retryCount, setRetryCount] = useState(0);
   const streamdownContext = useContext(StreamdownContext);
   const diagramOptions = getDiagramOptions(streamdownContext, name);
@@ -61,49 +55,26 @@ export const Diagram = ({
     immediate: fullscreen,
   });
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: "Required for diagram engines"
+  // retryCount deliberately invalidates a failed request.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: retryCount is an explicit retry trigger
   useEffect(() => {
-    if (!shouldRender) {
+    if (!shouldRender || (waitForClosedFence && isBlockIncomplete)) {
+      requestRender(null);
       return;
     }
-
-    // Incomplete Vega JSON / SMILES is never valid — skip the parse+error flash.
-    if (waitForClosedFence && isBlockIncomplete) {
-      return;
-    }
-
     if (!plugin) {
+      requestRender(null);
       setError(diagramLabel(t, name, "missing"));
       return;
     }
-
-    const renderChart = async () => {
-      try {
-        setError(null);
-        setIsLoading(true);
-
-        const { svg } = await plugin.render(
-          chart,
-          buildDiagramRenderOptions(config, language)
-        );
-        const size = getMermaidSvgSize(svg);
-        const normalizedSvg = fullscreen ? svg : normalizeMermaidInlineSvg(svg);
-
-        setSvgContent(normalizedSvg);
-        setSvgSize(size);
-        setLastValidSvg(normalizedSvg);
-      } catch (err) {
-        if (!(lastValidSvg || svgContent)) {
-          setError(
-            err instanceof Error ? err.message : diagramLabel(t, name, "failed")
-          );
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    renderChart();
+    requestRender({
+      chart,
+      config,
+      language,
+      plugin,
+      fullscreen,
+      failedMessage: diagramLabel(t, name, "failed"),
+    });
   }, [
     chart,
     config,
@@ -111,8 +82,13 @@ export const Diagram = ({
     retryCount,
     shouldRender,
     plugin,
+    fullscreen,
     isBlockIncomplete,
     waitForClosedFence,
+    requestRender,
+    setError,
+    t,
+    name,
   ]);
 
   if (!(shouldRender || svgContent || lastValidSvg)) {

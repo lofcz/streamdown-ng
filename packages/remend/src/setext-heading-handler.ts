@@ -1,3 +1,6 @@
+import { isInsideCodeBlock } from "./code-block-utils";
+import { isWithinMathBlock } from "./utils";
+
 // Handles incomplete setext heading underlines during streaming
 // Setext headings use --- or === on the line below text to create headings
 // During streaming, partial list items (like "-") can be misinterpreted as setext heading underlines
@@ -5,6 +8,8 @@
 // Regex patterns defined at top level for performance
 const DASH_ONLY_PATTERN = /^-{1,2}$/;
 const DASH_WITH_SPACE_PATTERN = /^[\s]*-{1,2}[\s]+$/;
+const INDENTED_CODE_PATTERN = /^(?: {4}|\t)/;
+const EMPTY_DASH_LIST_PATTERN = /^[ \t]*-[ \t]+$/;
 const EQUALS_ONLY_PATTERN = /^={1,2}$/;
 const EQUALS_WITH_SPACE_PATTERN = /^[\s]*={1,2}[\s]+$/;
 
@@ -27,6 +32,18 @@ export const handleIncompleteSetextHeading = (text: string): string => {
 
   const lastLine = text.substring(lastNewlineIndex + 1);
   const previousContent = text.substring(0, lastNewlineIndex);
+  const lastLineStart = lastNewlineIndex + 1;
+  if (
+    INDENTED_CODE_PATTERN.test(lastLine) ||
+    isInsideCodeBlock(text, lastLineStart) ||
+    isWithinMathBlock(text, lastLineStart)
+  ) {
+    return text;
+  }
+
+  if (EMPTY_DASH_LIST_PATTERN.test(lastLine) && previousContent.trim()) {
+    return `${text}\u200B`;
+  }
 
   // Check if last line is only dashes or equals (potential setext heading underline)
   // We need to check for patterns like: "-", "--", "=", "=="
