@@ -1,5 +1,11 @@
 # streamdown
 
+## 2.16.2
+
+### Patch Changes
+
+- Keep code blocks at their real height when off screen so scrolling through a document does not change the parent scrollbar range or jump its thumb. Remove the default estimated content-visibility sizing; explicit consumer styles remain supported.
+
 ## 2.16.1
 
 ### Patch Changes
