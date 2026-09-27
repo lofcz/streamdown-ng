@@ -193,3 +193,8 @@
 #nd-sidebar-mobile > div:first-child > div:first-child {
   @apply hidden;
 }
+
+@utility material-menu {
+  box-shadow: var(--ds-shadow-menu);
+  @apply bg-background-100 rounded-[12px];
+}
