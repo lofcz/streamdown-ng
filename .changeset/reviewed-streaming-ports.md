@@ -1,5 +1,5 @@
 ---
-"@lofcz/streamdown": minor
+"@lofcz/streamdown": patch
 "@lofcz/streamdown-code": patch
 "@lofcz/streamdown-cjk": patch
 "@lofcz/remend": patch
