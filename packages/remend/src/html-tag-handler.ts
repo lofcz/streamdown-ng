@@ -8,12 +8,29 @@ const incompleteHtmlTagPattern = /<[a-zA-Z/][^>]*$/;
 
 const tagNameStartPattern = /[a-zA-Z/]/;
 
+// Letter/digit/_ immediately before `<` means comparison (`a<b`) or a type
+// argument (`Array<string`), not the start of an HTML tag.
+const identifierCharPattern = /[\p{L}\p{N}_]/u;
+
 const hasMathDelimiters = (text: string): boolean =>
   text.includes("$") || text.includes("\\(") || text.includes("\\[");
 
 const startsTag = (text: string, index: number): boolean => {
   const nextChar = text[index + 1];
   return nextChar !== undefined && tagNameStartPattern.test(nextChar);
+};
+
+const looksLikeComparisonOrGeneric = (text: string, index: number): boolean => {
+  if (index === 0) {
+    return false;
+  }
+  // `</…` is always a closing tag, never a comparison (`a<b`) or generic.
+  if (text[index + 1] === "/") {
+    return false;
+  }
+  const previous =
+    Array.from(text.slice(Math.max(0, index - 2), index)).at(-1) ?? "";
+  return identifierCharPattern.test(previous);
 };
 
 export const handleIncompleteHtmlTag = (text: string): string => {
@@ -31,6 +48,18 @@ export const handleIncompleteHtmlTag = (text: string): string => {
 
   for (let index = match.index; index < text.length; index += 1) {
     if (text[index] !== "<" || !startsTag(text, index)) {
+      continue;
+    }
+
+    let backslashes = 0;
+    for (
+      let before = index - 1;
+      before >= 0 && text[before] === "\\";
+      before--
+    ) {
+      backslashes++;
+    }
+    if (backslashes % 2 === 1 || looksLikeComparisonOrGeneric(text, index)) {
       continue;
     }
 

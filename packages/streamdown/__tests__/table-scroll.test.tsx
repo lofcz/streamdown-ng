@@ -1,8 +1,32 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StreamdownContext, type StreamdownContextType } from "../index";
 import { Table } from "../lib/table";
+
+const frames = new Map<number, FrameRequestCallback>();
+let nextFrame = 0;
+const flushFrame = () => {
+  const pending = [...frames.values()];
+  frames.clear();
+  act(() => {
+    for (const callback of pending) {
+      callback(performance.now());
+    }
+  });
+};
+beforeEach(() => {
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    const id = ++nextFrame;
+    frames.set(id, callback);
+    return id;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+});
+afterEach(() => {
+  frames.clear();
+  vi.unstubAllGlobals();
+});
 
 const defaultContext: StreamdownContextType = {
   codeBlockMaxHeight: 400,
@@ -130,6 +154,7 @@ describe("Table scroll", () => {
       </StreamdownContext.Provider>
     );
 
+    flushFrame();
     expect(scrollToSpy).toHaveBeenCalledWith({
       top: expect.any(Number),
       behavior: "instant",
@@ -177,6 +202,7 @@ describe("Table scroll", () => {
       </StreamdownContext.Provider>
     );
 
+    flushFrame();
     expect(scrollToSpy).not.toHaveBeenCalled();
   });
 });

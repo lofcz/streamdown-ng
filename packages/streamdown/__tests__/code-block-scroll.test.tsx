@@ -1,9 +1,33 @@
 import { act, render } from "@testing-library/react";
 import { type ReactNode, useEffect, useRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StreamdownContext, type StreamdownContextType } from "../index";
 import { CodeBlockBody } from "../lib/code-block/body";
 import type { ScrollableProps } from "../lib/streamdown-context";
+
+const frames = new Map<number, FrameRequestCallback>();
+let nextFrame = 0;
+const flushFrame = () => {
+  const pending = [...frames.values()];
+  frames.clear();
+  act(() => {
+    for (const callback of pending) {
+      callback(performance.now());
+    }
+  });
+};
+beforeEach(() => {
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    const id = ++nextFrame;
+    frames.set(id, callback);
+    return id;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+});
+afterEach(() => {
+  frames.clear();
+  vi.unstubAllGlobals();
+});
 
 const defaultContext: StreamdownContextType = {
   codeBlockMaxHeight: 400,
@@ -83,6 +107,7 @@ describe("CodeBlockBody streaming scroll", () => {
       </StreamdownContext.Provider>
     );
 
+    flushFrame();
     expect(scrollToSpy).toHaveBeenCalledWith({
       behavior: "instant",
       top: expect.any(Number),
@@ -119,6 +144,7 @@ describe("CodeBlockBody streaming scroll", () => {
       </StreamdownContext.Provider>
     );
 
+    flushFrame();
     expect(scrollToSpy).not.toHaveBeenCalled();
   });
 
@@ -160,6 +186,7 @@ describe("CodeBlockBody streaming scroll", () => {
       </StreamdownContext.Provider>
     );
 
+    flushFrame();
     expect(scrollToSpy).not.toHaveBeenCalled();
 
     mockOverflow(scrollDiv, 700);
@@ -182,6 +209,7 @@ describe("CodeBlockBody streaming scroll", () => {
       </StreamdownContext.Provider>
     );
 
+    flushFrame();
     expect(scrollToSpy).toHaveBeenCalledWith({
       behavior: "instant",
       top: expect.any(Number),
@@ -228,10 +256,12 @@ describe("CodeBlockBody streaming scroll", () => {
     );
 
     await act(async () => {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
+      flushFrame();
+      await Promise.resolve();
+      flushFrame();
     });
 
+    flushFrame();
     expect(scrollToSpy).toHaveBeenCalledWith({
       behavior: "instant",
       top: expect.any(Number),

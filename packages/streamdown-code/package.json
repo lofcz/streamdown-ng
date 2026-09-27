@@ -18,6 +18,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "bench": "vitest bench --run",
     "build": "node scripts/build.mjs",
     "test": "vitest run",
     "test:coverage": "vitest --coverage run"

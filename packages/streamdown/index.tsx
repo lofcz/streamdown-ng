@@ -25,15 +25,15 @@ import {
   type AnimateOptions,
   type AnimatePlugin,
   type AnimateTimeline,
-  createAnimatePlugin,
   createAnimateTimeline,
+  createRenderAnimatePlugin,
 } from "./lib/animate";
 import { BlockIncompleteContext } from "./lib/block-incomplete-context";
 import { createBlockKeyTracker } from "./lib/block-keys";
 import { components as builtinComponents } from "./lib/components";
 import { detectTextDirection } from "./lib/detect-direction";
 import { type IconMap, IconProvider } from "./lib/icon-context";
-import { hasIncompleteCodeFence } from "./lib/incomplete-code-utils";
+import { hasIncompleteCodeFence, hasTable } from "./lib/incomplete-code-utils";
 import {
   type Components,
   type ExtraProps,
@@ -88,6 +88,7 @@ import {
   TranslationsContext,
 } from "./lib/translations-context";
 import { useAnimationDrain } from "./lib/use-animation-drain";
+import { useCaretHost } from "./lib/use-caret-host";
 import { useSmoothStream } from "./lib/use-smooth-stream";
 import { createCn } from "./lib/utils";
 
@@ -904,7 +905,11 @@ export const Streamdown = memo(
       // prefix blocks stay byte-identical across tokens so Block memo holds.
       const lastIdx = parsed.blocks.length - 1;
       const last = parsed.blocks[lastIdx];
-      const remended = remend(last, remendOptions);
+      const remended = remend(last, {
+        ...remendOptions,
+        pendingInlineMarkers:
+          isAnimating && remendOptions?.pendingInlineMarkers,
+      });
       if (remended === last) {
         return parsed.blocks;
       }
@@ -917,6 +922,7 @@ export const Streamdown = memo(
       mode,
       shouldParseIncompleteMarkdown,
       remendOptions,
+      isAnimating,
     ]);
 
     // Stable key derived from animated option values. This prevents the
@@ -1284,6 +1290,14 @@ export const Streamdown = memo(
       [caret, isAnimating]
     );
 
+    const shouldHideCaret = useMemo(() => {
+      const last = blocksToRender.at(-1);
+      return Boolean(
+        isAnimating && last && (hasIncompleteCodeFence(last) || hasTable(last))
+      );
+    }, [isAnimating, blocksToRender]);
+    const { showCaret } = useCaretHost(shouldHideCaret, animationContainerRef);
+
     // Helper: lazily create a per-block animate plugin and return the
     // combined rehype plugins array for a given block index.  Extracted
     // from the render map to keep cognitive complexity within biome limits.
@@ -1297,7 +1311,7 @@ export const Streamdown = memo(
       if (animateTimelineRef.current && animateText) {
         if (!blockAnimatePluginsRef.current[index]) {
           // maxBacklogMs is consumed by the timeline factory, not the plugin.
-          blockAnimatePluginsRef.current[index] = createAnimatePlugin({
+          blockAnimatePluginsRef.current[index] = createRenderAnimatePlugin({
             ...getBlockAnimateOptions(animated, smooth),
             timeline: animateTimelineRef.current,
           });
@@ -1367,8 +1381,8 @@ export const Streamdown = memo(
                   className={prefixedCn(
                     // Use [&>*] arbitrary variant syntax for Tailwind v3 + v4 compat (v3 lacks the *: variant)
                     "space-y-4 whitespace-normal [&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
-                    caret
-                      ? "[&>*:last-child]:after:inline [&>*:last-child]:after:align-baseline [&>*:last-child]:after:content-[var(--streamdown-caret)]"
+                    caret && showCaret
+                      ? "[&>*:last-child:not([data-sd-caret-hidden])]:after:inline [&>*:last-child:not([data-sd-caret-hidden])]:after:align-baseline [&>*:last-child:not([data-sd-caret-hidden])]:after:content-[var(--streamdown-caret)]"
                       : null,
                     className
                   )}

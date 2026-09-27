@@ -83,7 +83,7 @@
     "remark-gfm": "npm:@lofcz/remark-gfm@^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
-    "remend": "npm:@lofcz/remend@^1.3.0",
+    "remend": "workspace:@lofcz/remend@^",
     "tailwind-merge": "^3.6.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.1.0",
