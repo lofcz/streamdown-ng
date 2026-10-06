@@ -234,8 +234,8 @@ describe("Markdown Components", () => {
       const blockquote = container.querySelector("blockquote");
       expect(blockquote).toBeTruthy();
       expect(blockquote?.className).toContain("my-4");
-      expect(blockquote?.className).toContain("border-l-4");
-      expect(blockquote?.className).toContain("pl-4");
+      expect(blockquote?.className).toContain("border-s-4");
+      expect(blockquote?.className).toContain("ps-4");
       expect(blockquote?.className).toContain("italic");
     });
   });
@@ -1035,7 +1035,7 @@ describe("Markdown Components", () => {
       expect(th?.className).toContain("overflow-hidden");
       expect(th?.className).toContain("px-4");
       expect(th?.className).toContain("py-2");
-      expect(th?.className).toContain("text-left");
+      expect(th?.className).toContain("text-start");
       expect(th?.className).toContain("font-semibold");
       expect(th?.className).toContain("text-sm");
       expect(th?.className).not.toContain("whitespace-nowrap");

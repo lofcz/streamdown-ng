@@ -189,13 +189,13 @@ export const TableDownloadDropdown = ({
       {isOpen ? (
         <div
           className={cn(
-            "absolute top-full right-0 z-20 mt-1 min-w-[120px] overflow-hidden rounded-md border border-border bg-background shadow-lg"
+            "absolute end-0 top-full z-20 mt-1 min-w-[120px] overflow-hidden rounded-md border border-border bg-background shadow-lg"
           )}
         >
           <button
             aria-label={t.downloadTableAsCsv}
             className={cn(
-              "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+              "w-full px-3 py-2 text-start text-sm transition-colors hover:bg-muted/40"
             )}
             onClick={() => downloadTableData("csv")}
             title={t.downloadTableAsCsv}
@@ -206,7 +206,7 @@ export const TableDownloadDropdown = ({
           <button
             aria-label={t.downloadTableAsMarkdown}
             className={cn(
-              "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+              "w-full px-3 py-2 text-start text-sm transition-colors hover:bg-muted/40"
             )}
             onClick={() => downloadTableData("markdown")}
             title={t.downloadTableAsMarkdown}

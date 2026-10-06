@@ -267,7 +267,7 @@ const MemoOl = memo<OlProps>(
     return (
       <ol
         className={cn(
-          "list-inside list-decimal whitespace-normal [li_&]:pl-6",
+          "list-inside list-decimal whitespace-normal [li_&]:ps-6",
           className
         )}
         data-depth={depth}
@@ -357,7 +357,7 @@ const MemoUl = memo<UlProps>(
     );
     return (
       <ul
-        className={cn("list-inside whitespace-normal [li_&]:pl-6", className)}
+        className={cn("list-inside whitespace-normal [li_&]:ps-6", className)}
         data-depth={depth}
         data-streamdown="unordered-list"
         {...props}
@@ -462,7 +462,7 @@ const LinkComponent = ({
       <>
         <button
           className={cn(
-            "wrap-anywhere appearance-none text-left font-medium text-primary underline",
+            "wrap-anywhere appearance-none text-start font-medium text-primary underline",
             className
           )}
           data-incomplete={isIncomplete}
@@ -698,7 +698,7 @@ const MemoTh = memo<ThProps>(
     return (
       <th
         className={cn(
-          "min-w-0 overflow-hidden px-4 py-2 text-left font-semibold text-sm",
+          "min-w-0 overflow-hidden px-4 py-2 text-start font-semibold text-sm",
           className
         )}
         data-streamdown="table-header-cell"
@@ -738,7 +738,7 @@ const MemoBlockquote = memo<BlockquoteProps>(
     return (
       <blockquote
         className={cn(
-          "my-4 border-muted-foreground/30 border-l-4 pl-4 text-muted-foreground italic",
+          "my-4 border-muted-foreground/30 border-s-4 ps-4 text-muted-foreground italic",
           className
         )}
         data-streamdown="blockquote"
