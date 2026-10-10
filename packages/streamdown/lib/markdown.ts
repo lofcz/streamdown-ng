@@ -58,9 +58,26 @@ export interface Options {
 const EMPTY_PLUGINS: PluggableList = [];
 const DEFAULT_REMARK_REHYPE_OPTIONS = { allowDangerousHtml: true };
 
-// Plugin name cache for faster serialization
-// biome-ignore lint/complexity/noBannedTypes: "Need Function type for plugin caching"
-const pluginNameCache = new WeakMap<Function, string>();
+// Plugin closures and option objects are identities, not function names or
+// JSON. Names collide after minification; JSON drops callbacks and rejects
+// cyclic options. Weak keys also avoid retaining consumer configurations.
+const identityIds = new WeakMap<object, number>();
+let nextIdentityId = 0;
+const cacheIdentity = (value: unknown): string => {
+  if (
+    value !== null &&
+    (typeof value === "object" || typeof value === "function")
+  ) {
+    const object = value as object;
+    let id = identityIds.get(object);
+    if (id === undefined) {
+      id = ++nextIdentityId;
+      identityIds.set(object, id);
+    }
+    return `ref:${id}`;
+  }
+  return `${typeof value}:${String(value)}`;
+};
 
 // LRU Cache for unified processors
 class ProcessorCache {
@@ -87,54 +104,18 @@ class ProcessorCache {
       return key;
     }
 
-    // Optimize serialization for plugins
-    // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: "Plugin serialization requires checking multiple plugin formats"
-    const serializePlugins = (plugins: PluggableList | undefined): string => {
-      if (!plugins || plugins.length === 0) {
-        return "";
-      }
-
-      let result = "";
-      for (let i = 0; i < plugins.length; i += 1) {
-        const plugin = plugins[i];
-        if (i > 0) {
-          result += ",";
-        }
-
-        if (Array.isArray(plugin)) {
-          // Plugin with options: [plugin, options]
-          const [pluginFn, pluginOptions] = plugin;
-          if (typeof pluginFn === "function") {
-            let name = pluginNameCache.get(pluginFn);
-            if (!name) {
-              name = pluginFn.name;
-              pluginNameCache.set(pluginFn, name);
-            }
-            result += name;
-          } else {
-            result += String(pluginFn);
-          }
-          result += ":";
-          result += JSON.stringify(pluginOptions);
-        } else if (typeof plugin === "function") {
-          // Plugin without options
-          let name = pluginNameCache.get(plugin);
-          if (!name) {
-            name = plugin.name;
-            pluginNameCache.set(plugin, name);
-          }
-          result += name;
-        } else {
-          result += String(plugin);
-        }
-      }
-      return result;
-    };
-
+    const serializePlugins = (plugins: PluggableList | undefined): string =>
+      (plugins ?? [])
+        .map((plugin) =>
+          Array.isArray(plugin)
+            ? plugin.map(cacheIdentity).join(":")
+            : cacheIdentity(plugin)
+        )
+        .join(",");
     const rehypeKey = serializePlugins(rehypePlugins);
     const remarkKey = serializePlugins(remarkPlugins);
     const optionsKey = remarkRehypeOptions
-      ? JSON.stringify(remarkRehypeOptions)
+      ? cacheIdentity(remarkRehypeOptions)
       : "";
 
     const key = `${remarkKey}::${rehypeKey}::${optionsKey}`;
