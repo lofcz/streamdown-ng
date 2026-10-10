@@ -1,5 +1,12 @@
 # streamdown
 
+## 2.16.4
+
+### Patch Changes
+
+- Skip streaming block parsing and caret hydration updates for static history.
+- Cache Markdown processors by plugin and option identity, avoiding collisions between same-named closures and callback options.
+
 ## 2.16.3
 
 ### Patch Changes

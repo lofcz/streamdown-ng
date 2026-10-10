@@ -886,6 +886,12 @@ export const Streamdown = memo(
     ]);
 
     const blocks = useMemo(() => {
+      // Static Markdown is parsed once by <Markdown> below. Splitting it into
+      // streaming blocks here duplicates parsing for every historical message.
+      if (mode === "static") {
+        incrementalParseRef.current = null;
+        return [];
+      }
       const prev = mode === "streaming" ? incrementalParseRef.current : null;
       const parsed = parseMarkdownIntoBlocksIncremental(
         processedChildren,

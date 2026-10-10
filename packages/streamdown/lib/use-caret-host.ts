@@ -27,7 +27,11 @@ export const useCaretHost = (
   // caret off the container whenever it should be hidden. The first client
   // render reads the same flag, which keeps hydration matching.
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  useEffect(() => {
+    if (shouldHideCaret) {
+      setHydrated(true);
+    }
+  }, [shouldHideCaret]);
 
   // Hiding the caret by toggling a class or custom property on the container
   // invalidates style for the whole document, tens of milliseconds on a long
