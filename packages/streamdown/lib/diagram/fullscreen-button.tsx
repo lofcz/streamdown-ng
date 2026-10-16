@@ -139,7 +139,7 @@ export const DiagramFullscreenButton = ({
               {/* biome-ignore lint/a11y/noStaticElementInteractions: "div with role=presentation is used for event propagation control" */}
               <div
                 className={cn(
-                  "absolute top-4 right-4 z-10 flex items-center gap-1"
+                  "absolute end-4 top-4 z-10 flex items-center gap-1"
                 )}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}

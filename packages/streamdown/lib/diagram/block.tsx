@@ -96,7 +96,7 @@ export const DiagramCodeBlock = ({
       <div
         className={cn("flex h-8 items-center text-muted-foreground text-xs")}
       >
-        <span className={cn("ml-1 font-mono lowercase")}>{language}</span>
+        <span className={cn("ms-1 font-mono lowercase")}>{language}</span>
       </div>
       {showDiagramControls ? (
         <div

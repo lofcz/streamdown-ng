@@ -130,13 +130,13 @@ export const DiagramDownloadDropdown = ({
       {isOpen ? (
         <div
           className={cn(
-            "absolute top-full right-0 z-10 mt-1 min-w-[120px] overflow-hidden rounded-md border border-border bg-background shadow-lg"
+            "absolute end-0 top-full z-10 mt-1 min-w-[120px] overflow-hidden rounded-md border border-border bg-background shadow-lg"
           )}
         >
           <button
             aria-label={t.downloadDiagramAsSvg}
             className={cn(
-              "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+              "w-full px-3 py-2 text-start text-sm transition-colors hover:bg-muted/40"
             )}
             onClick={() => downloadDiagram("svg")}
             title={t.downloadDiagramAsSvg}
@@ -147,7 +147,7 @@ export const DiagramDownloadDropdown = ({
           <button
             aria-label={t.downloadDiagramAsPng}
             className={cn(
-              "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+              "w-full px-3 py-2 text-start text-sm transition-colors hover:bg-muted/40"
             )}
             onClick={() => downloadDiagram("png")}
             title={t.downloadDiagramAsPng}
@@ -158,7 +158,7 @@ export const DiagramDownloadDropdown = ({
           <button
             aria-label={diagramSourceDownloadLabel(t, name)}
             className={cn(
-              "w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted/40"
+              "w-full px-3 py-2 text-start text-sm transition-colors hover:bg-muted/40"
             )}
             onClick={() => downloadDiagram("source")}
             title={diagramSourceDownloadLabel(t, name)}

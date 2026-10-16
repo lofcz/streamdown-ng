@@ -38,7 +38,7 @@ const logicalPhysicalConflicts = {
   left: ['start', 'end'],
   right: ['start', 'end'],
   'inset-x': ['start', 'end'],
-};
+} as const;
 
 const twMerge = extendTailwindMerge({
   extend: { conflictingClassGroups: logicalPhysicalConflicts },

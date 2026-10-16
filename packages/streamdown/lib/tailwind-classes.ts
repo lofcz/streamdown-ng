@@ -7,6 +7,16 @@
  * you need a custom prefix.  See the README for details.
  */
 export const STREAMDOWN_CLASSES: readonly string[] = [
+  "[li_&]:ps-6",
+  "border-s-4",
+  "ps-4",
+  "text-start",
+  "end-0",
+  "end-2",
+  "end-4",
+  "start-2",
+  "start-4",
+  "ms-1",
   "-mt-10",
   "[&>p]:inline",
   "[&>p:last-child]:mb-0",
