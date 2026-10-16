@@ -1,0 +1,92 @@
+# Upstream sync — 2026-10-17
+
+The fork was synchronized from `d5de4b4` with
+[`vercel/streamdown@fea4ef5`](https://github.com/vercel/streamdown/commit/fea4ef5baada951c0f907e29669d1cba1f8beec1).
+All 21 incoming upstream commits are represented in the merge history. Existing
+ports were reconciled with their upstream versions instead of applied twice.
+
+## Open PR review
+
+Reviewed with `gh pr list`, `gh pr view`, `gh pr diff`, and fetched PR heads.
+The primary window was October 3–17, with older recently updated PRs checked
+for overlap. GitHub check results were advisory; selected changes were built
+and tested in this fork.
+
+| Upstream PR | Decision | Reason and adaptation |
+| --- | --- | --- |
+| [#670 — CommonMark emphasis engine](https://github.com/vercel/streamdown/pull/670) | Integrated | Replaces superseded per-marker counting with delimiter matching, correct nesting, block boundaries, and escaped-marker handling. All 13 original PR commits are retained. Preserves the fork's opt-in `pendingInlineMarkers`, empty-list whitespace, and incomplete-image placeholders. Includes parser-oracle tests. |
+| [#653 — close the currently open math block](https://github.com/vercel/streamdown/pull/653) | Integrated | Fixes single-line math after earlier multiline math and unfinished formulas inside table cells. Original commit retained through cherry-pick attribution. |
+| [#674 — CJK bold autolinks](https://github.com/vercel/streamdown/pull/674) | Integrated with correction | Restores bold links before CJK punctuation. Corrects the reported regression where `foo__https://example.com/__、英語版` incorrectly loses URL underscores. Tests cover ASCII, CJK, accented letters, and combining marks. |
+| [#657 — logical RTL utilities](https://github.com/vercel/streamdown/pull/657) | Integrated with adaptation | Mirrors lists, quotes, headers, images, and menus. Retains fork list-depth styling, table wrapping, image lightboxes, prefixed classes, and CSV BOM handling. Fixes the PR's inferred array types so declaration builds pass. |
+| [#654 — logical RTL classes](https://github.com/vercel/streamdown/pull/654) | Selected additions integrated | Shares the main changes with #657. Adapts additional modal and diagram controls to the fork's shared renderer and updates exported Tailwind classes. Keeps code blocks explicitly LTR. |
+| [#668 — quiet partial Mermaid errors](https://github.com/vercel/streamdown/pull/668) | Integrated with adaptation | Keeps the loader while an incomplete chart streams and shows final errors after fence closure. Applied to the shared diagram renderer. Final renders bypass streaming cooldowns even when chart text is unchanged. |
+| [#680 — lazy Mermaid block](https://github.com/vercel/streamdown/pull/680) | Already covered | The fork already loads `DiagramCodeBlock` with one dynamic import, including chart and controls, for every SVG diagram plugin. Retained this broader implementation. |
+| [#678 — drain animation backlog](https://github.com/vercel/streamdown/pull/678) | Already covered | The fork waits for actual browser animations, including delays, rather than a calculated timer. Existing tests cover the final chunk, resumed streams, content changes during drain, and unrelated/infinite animations. |
+| [#663 — optional raw-HTML core entry](https://github.com/vercel/streamdown/pull/663) | Deferred: reproduced production bug | The core entry detects user-supplied `rehypeRaw` by function name. Bundling its registry with `rehype-raw` using esbuild `bundle: true, minify: true` produced `{"name":"De","detected":false}`. The Markdown pipeline would consequently escape HTML before the supplied raw plugin can parse it. Requires reliable detection and a built-consumer regression test before adoption. |
+| [#682 — lazy word-fade engine](https://github.com/vercel/streamdown/pull/682) | Deferred | Changes initial animation behavior and adds loading, retry, hydration, and engine-replacement state for about 1 KiB of reported initial consumer savings. Its plugin-identity cache fix is already present in the fork. Revisit after compatibility with the fork's effects and animation drain is demonstrated. |
+| [#662 — Geistdocs dependency update](https://github.com/vercel/streamdown/pull/662) | Not applied | Upstream uses Geistdocs v2; the fork retains its local documentation components and current dependency line. An upstream website migration would overwrite fork functionality. |
+| [#649 — Next.js dependency pin](https://github.com/vercel/streamdown/pull/649) | Superseded by upstream main | Applied upstream main's newer Next.js 16.3.7 to both apps instead of the PR's 16.3.6 pin. |
+| [#648 — upstream release PR](https://github.com/vercel/streamdown/pull/648) | Not applied | Fork package names, release versions, and publishing workflow are independent. Incoming changesets use fork package names. |
+| [#625 — smooth streaming](https://github.com/vercel/streamdown/pull/625), [#626 — animation effects](https://github.com/vercel/streamdown/pull/626) | Already integrated | The fork already includes smoothing, animation lifetime fixes, and the effects package. |
+| [#630 — incomplete HTML classifier](https://github.com/vercel/streamdown/pull/630) | Already integrated | The fork already includes the plausible-tag classifier and its regression coverage. |
+
+## Reconciliation choices
+
+- Adopted upstream's container-aware remend scanner and cache cleanup, plus
+  the new emphasis engine. Kept fork pending-marker and image-placeholder behavior.
+- Adopted the cost-bounded highlight LRU and skipped caching unfinished code.
+  Preserved object identity for custom themes with identical names and full-source
+  cache keys, which upstream's implementation would regress.
+- Added cross-block reference-link resolution, including nested definitions,
+  while retaining parser state per component and avoiding duplicate tail lexing.
+- Adopted CJK character animation, root `data-*`/`aria-*` forwarding, and the
+  caret hydration optimization. Retained the caret observer for lazy/custom hosts.
+  Upstream Mermaid translation keys are accepted as aliases, with fork keys
+  taking precedence.
+- Kept the shared diagram adapters, Mermaid auto-fix, diagram plugins, browser
+  animation draining, custom scrollable support, and stable code scroll geometry.
+- Kept the fork's website, package identities, versions, build scripts,
+  publishing and deployment configuration, and CI policy. Upstream
+  signed-commit enforcement
+  was not installed as a new fork policy.
+- Updated both apps to upstream main's Next.js 16.3.7 and applied the OG image
+  proxy exclusion to the fork's middleware.
+- Added upstream's released/local comparison page, using published fork
+  packages as the released baseline. The app build also exposed an existing
+  OverlayScrollbars ref type mismatch; the adapter now consumes the native
+  div ref rather than forwarding it to a different component-instance type.
+  The live model catalog is fetched at request time so builds do not require
+  AI Gateway credentials.
+
+The emphasis change consolidates built-in handlers at priority 30. Custom remend
+handlers ordered against the previous emphasis priorities may need adjustment;
+this is documented in the changeset and termination documentation. Changesets
+follow the fork's existing patch-release policy.
+
+## Validation
+
+- `pnpm build:packages`: all 12 package builds and declaration generation pass,
+  including the public `HighlightResult` and `HighlightToken` exports.
+- `pnpm exec turbo run build --filter=website --filter=test --concurrency=1`:
+  all 14 tasks pass; both apps build on Next.js 16.3.7.
+- `pnpm exec turbo run test --concurrency=1 -- --maxWorkers=4 --testTimeout=60000`:
+  all 12 package tasks pass, covering 2,457 tests. One corpus-dependent
+  benchmark is intentionally skipped. Follow-up suites pass for the added
+  translation aliases, final Mermaid cooldown, static mount count, and caret
+  hydration. Package scheduling was limited after an initial parallel run
+  exhausted worker startup time while the website was also building.
+- `NUM_RUNS=20000 pnpm --filter @lofcz/remend exec vitest run --maxWorkers=2
+  --testTimeout=60000 __tests__/emphasis-oracle.test.ts
+  __tests__/streaming-properties.test.ts`: all 16 tests pass, with 20,000 samples
+  per configurable randomized property.
+- `pnpm check`: all 469 checked files pass.
+- Changeset action: all nine tests pass. All 13 incoming fork changesets pass
+  the existing patch-release policy. Release planning includes Streamdown,
+  remend, CJK, and code highlighting; published versions were not changed.
+- Production consumer bundling confirms that the fork's SVG diagram block
+  actions and fullscreen controls remain behind dynamic imports, using the
+  bundle helper from upstream PR #680.
+- Built website HTTP smoke checks: `/opengraph-image.png` returns `200 image/png`
+  without a locale redirect, `/docs/configuration` returns `200 text/html`, and
+  `/sitemap.xml` returns `200 application/xml`.
+- `git diff --check` passes. Upstream `fea4ef5` is an ancestor of the result.
