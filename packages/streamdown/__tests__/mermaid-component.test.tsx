@@ -2,6 +2,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { StreamdownContext } from "../index";
+import { BlockIncompleteContext } from "../lib/block-incomplete-context";
 import { Mermaid } from "../lib/mermaid/index";
 import { PluginContext } from "../lib/plugin-context";
 import type { DiagramPlugin, MermaidInstance } from "../lib/plugin-types";
@@ -319,6 +320,12 @@ describe("Mermaid Component", () => {
   });
 
   describe("while the chart streams", () => {
+    const streaming = (chart: string, incomplete = true) => (
+      <BlockIncompleteContext.Provider value={incomplete}>
+        <Mermaid chart={chart} />
+      </BlockIncompleteContext.Provider>
+    );
+
     // A render whose promise the test settles by hand
     const deferredRender = () => {
       const pending: Array<{
@@ -398,7 +405,7 @@ describe("Mermaid Component", () => {
       const charts = streamed(6);
 
       const { rerender } = renderWithContext(
-        <Mermaid chart={charts[0]} />,
+        streaming(charts[0]),
         {},
         { mermaid: plugin }
       );
@@ -408,7 +415,7 @@ describe("Mermaid Component", () => {
         await act(async () => {
           await new Promise((resolve) => setTimeout(resolve, 40));
         });
-        rerender(<Mermaid chart={chart} />);
+        rerender(streaming(chart));
       }
       await waitFor(
         () =>
@@ -455,6 +462,45 @@ describe("Mermaid Component", () => {
         expect(container.querySelector('[data-chart="final"]')).toBeTruthy();
       });
       expect(container.textContent).not.toContain("Parse error");
+    });
+
+    it("does not show an error for a partial chart while the fence streams", async () => {
+      const { mockRender, pending } = deferredRender();
+      const plugin = createMockMermaidPlugin(mockRender);
+
+      const { container } = renderWithContext(
+        streaming("graph TD;\n    A--", true),
+        {},
+        { mermaid: plugin }
+      );
+      await waitFor(() => expect(mockRender).toHaveBeenCalledTimes(1));
+      await settle(() => pending[0].reject(new Error("Parse error on line 2")));
+
+      expect(container.textContent).not.toContain("Parse error");
+      expect(container.textContent).not.toContain("Mermaid Error");
+      expect(container.textContent).toContain("Loading diagram");
+    });
+
+    it("shows the error once the fence closes with the same chart", async () => {
+      const { mockRender, pending } = deferredRender();
+      const plugin = createMockMermaidPlugin(mockRender);
+      const chart = "graph TD;\n    A--";
+
+      const { container, rerender } = renderWithContext(
+        streaming(chart, true),
+        {},
+        { mermaid: plugin }
+      );
+      await waitFor(() => expect(mockRender).toHaveBeenCalledTimes(1));
+      await settle(() => pending[0].reject(new Error("Parse error on line 2")));
+
+      rerender(streaming(chart, false));
+      await waitFor(() => expect(mockRender).toHaveBeenCalledTimes(2));
+      await settle(() => pending[1].reject(new Error("Parse error on line 2")));
+
+      await waitFor(() => {
+        expect(container.textContent).toContain("Parse error on line 2");
+      });
     });
 
     it("stops after unmounting while a render is pending", async () => {

@@ -49,6 +49,7 @@ export const Diagram = ({
   const diagramOptions = getDiagramOptions(streamdownContext, name);
   const ErrorComponent = diagramOptions?.errorComponent;
   const isBlockIncomplete = useIsCodeFenceIncomplete();
+  const isStreamingMermaid = name === "mermaid" && isBlockIncomplete;
   const waitForClosedFence = DEFER_UNTIL_FENCE_CLOSED.has(name);
 
   const { shouldRender, containerRef } = useDeferredRender({
@@ -73,6 +74,7 @@ export const Diagram = ({
       language,
       plugin,
       fullscreen,
+      isIncomplete: isBlockIncomplete,
       failedMessage: diagramLabel(t, name, "failed"),
     });
   }, [
@@ -117,7 +119,7 @@ export const Diagram = ({
     );
   }
 
-  if (isLoading && !svgContent && !lastValidSvg) {
+  if ((isLoading || isStreamingMermaid) && !svgContent && !lastValidSvg) {
     return (
       <div
         className={cn("my-4 flex justify-center p-4", className)}

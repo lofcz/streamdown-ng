@@ -22,7 +22,10 @@ const request = (engine: SvgDiagramPlugin, fullscreen = false) => ({
   fullscreen,
   failedMessage: "failed",
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("diagram render queue", () => {
   it("uses the latest plugin and fullscreen mode after an in-flight render", async () => {
@@ -64,6 +67,33 @@ describe("diagram render queue", () => {
     });
     expect(result.current.svgContent).toBe("");
     expect(engine.render).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a closed fence immediately during a streaming cooldown", async () => {
+    vi.useFakeTimers();
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const first = pending();
+    const render = vi
+      .fn()
+      .mockImplementationOnce(() => first.promise)
+      .mockResolvedValue({ svg: "<svg>final</svg>" });
+    const engine = { ...plugin(render), name: "mermaid" };
+    const { result } = renderHook(useDiagramRender);
+    act(() =>
+      result.current.requestRender({ ...request(engine), isIncomplete: true })
+    );
+    now.mockReturnValue(1000);
+    await act(async () => {
+      first.resolve({ svg: "<svg>partial</svg>" });
+      await first.promise;
+    });
+    expect(render).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(1);
+    await act(async () => {
+      result.current.requestRender({ ...request(engine), isIncomplete: false });
+    });
+    expect(render).toHaveBeenCalledTimes(2);
+    expect(result.current.svgContent).toContain("final");
   });
 
   it("cancels cooldown timers when unmounted", async () => {

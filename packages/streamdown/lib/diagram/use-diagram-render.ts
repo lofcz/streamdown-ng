@@ -8,6 +8,7 @@ interface RenderRequest {
   config?: unknown;
   failedMessage: string;
   fullscreen: boolean;
+  isIncomplete?: boolean;
   language?: string;
   plugin: SvgDiagramPlugin;
 }
@@ -95,7 +96,7 @@ export const useDiagramRender = () => {
           renderLatest();
         }
       },
-      request.plugin.name === "mermaid"
+      request.plugin.name === "mermaid" && latest.current?.isIncomplete
         ? Math.max(0, performance.now() - started)
         : 0
     );
@@ -104,6 +105,13 @@ export const useDiagramRender = () => {
   const requestRender = useCallback(
     (request: RenderRequest | null) => {
       latest.current = request;
+      // Closing a fence must bypass a streaming cooldown, even when the
+      // final source is identical to the last prefix that failed to parse.
+      if (request && !request.isIncomplete && timer.current !== null) {
+        clearTimeout(timer.current);
+        timer.current = null;
+        inFlight.current = false;
+      }
       if (request) {
         pump();
       } else {
