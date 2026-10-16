@@ -8,6 +8,9 @@ import {
 
 export type LinkMode = "protocol" | "text-only";
 
+// Sentinel source retained by Streamdown for incomplete image placeholders.
+export const INCOMPLETE_IMAGE_PLACEHOLDER = "streamdown:incomplete-image";
+
 // Helper function to handle incomplete URLs in links/images
 const handleIncompleteUrl = (
   text: string,
@@ -39,7 +42,7 @@ const handleIncompleteUrl = (
 
   if (isImage) {
     // For images with incomplete URLs, replace with placeholder marker
-    return `${beforeLink}![${altOrLinkText}](streamdown:incomplete-image)`;
+    return `${beforeLink}![${altOrLinkText}](${INCOMPLETE_IMAGE_PLACEHOLDER})`;
   }
 
   // For links with incomplete URLs, handle based on linkMode
@@ -97,7 +100,7 @@ const handleIncompleteText = (
     if (isImage) {
       // For images with incomplete alt text, replace with placeholder marker
       const altText = text.substring(i + 1);
-      return `${beforeLink}![${altText}](streamdown:incomplete-image)`;
+      return `${beforeLink}![${altText}](${INCOMPLETE_IMAGE_PLACEHOLDER})`;
     }
 
     // For links, handle based on linkMode
@@ -122,7 +125,7 @@ const handleIncompleteText = (
     if (isImage) {
       // For images with no matching closing bracket, replace with placeholder marker
       const altText = text.substring(i + 1);
-      return `${beforeLink}![${altText}](streamdown:incomplete-image)`;
+      return `${beforeLink}![${altText}](${INCOMPLETE_IMAGE_PLACEHOLDER})`;
     }
 
     if (linkMode === "text-only") {

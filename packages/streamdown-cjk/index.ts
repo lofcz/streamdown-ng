@@ -125,6 +125,8 @@ const hasUnescapedDelimiter = (
   return escapeCount % 2 === 0;
 };
 
+const INTRAWORD_UNDERSCORE_PREFIX = /[^\s\p{P}\p{S}]$/u;
+
 const findStrongDelimiter = (
   source: string,
   previousNode: PhrasingContent | undefined,
@@ -156,7 +158,7 @@ const findStrongDelimiter = (
     // in foo__https://example.com/__ rather than treating them as closers.
     if (
       delimiter === "__" &&
-      /[^\s\p{P}\p{S}]$/u.test(source.slice(0, openingOffset))
+      INTRAWORD_UNDERSCORE_PREFIX.test(source.slice(0, openingOffset))
     ) {
       continue;
     }

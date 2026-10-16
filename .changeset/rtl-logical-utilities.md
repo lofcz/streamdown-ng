@@ -1,5 +1,5 @@
 ---
-"streamdown": patch
+"@lofcz/streamdown": patch
 ---
 
 Use logical direction utilities so layout mirrors in right-to-left text.

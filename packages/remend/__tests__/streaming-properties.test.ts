@@ -1,4 +1,5 @@
 import fc from "fast-check";
+import { fromMarkdown } from "mdast-util-from-markdown";
 import { describe, expect, it } from "vitest";
 import remend from "../src";
 
@@ -149,6 +150,7 @@ const assertCodeUnchanged = (prefix: string, healed: string): void => {
 
 const assertStreamingSafe = (prefix: string): void => {
   const healed = remend(prefix);
+  assertCodeUnchanged(prefix, healed);
 
   const loss = prefix.length - preservedPrefixLength(prefix, healed);
   if (loss > MAX_LOSS) {
