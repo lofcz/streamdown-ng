@@ -126,6 +126,8 @@ export type {
   CustomRendererProps,
   DiagramPlugin,
   HighlightOptions,
+  HighlightResult,
+  HighlightToken,
   MathPlugin,
   PlantUmlConfig,
   PlantUmlInstance,

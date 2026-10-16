@@ -1,6 +1,8 @@
-import { render } from "@testing-library/react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { act, render } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToStaticMarkup, renderToString } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
 import { Streamdown } from "../index";
 import type { CustomRendererProps } from "../lib/plugin-types";
 
@@ -273,6 +275,50 @@ describe("caret suppression", () => {
       const next = streamdownContainer(container);
       expect(next?.className).toBe(className);
       expect(next?.getAttribute("style")).toBe(style);
+    }
+  });
+  it("renders each static paragraph once on mount", () => {
+    let renders = 0;
+    const P = ({ children }: ComponentProps<"p">) => {
+      renders += 1;
+      return <p>{children}</p>;
+    };
+    render(
+      <Streamdown components={{ p: P }} mode="static">
+        {"First paragraph.\n\nSecond paragraph."}
+      </Streamdown>
+    );
+    expect(renders).toBe(2);
+  });
+
+  it("hydrates a suppressed caret without mismatches", async () => {
+    const element = (
+      <Streamdown caret="block" isAnimating>
+        {"| Name | Age |\n| --- | --- |\n| Alice | 30 |"}
+      </Streamdown>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(element);
+    document.body.appendChild(container);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const recoverableErrors: unknown[] = [];
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, element, {
+          onRecoverableError: (error) => recoverableErrors.push(error),
+        });
+        await Promise.resolve();
+      });
+      expect(recoverableErrors).toEqual([]);
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(isCaretSuppressed(container)).toBe(true);
+    } finally {
+      act(() => root?.unmount());
+      consoleError.mockRestore();
+      container.remove();
     }
   });
 });
