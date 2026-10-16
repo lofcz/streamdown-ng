@@ -29,6 +29,11 @@ export type HighlightResult = TokensResult;
  */
 export interface HighlightOptions {
   code: string;
+  /**
+   * Whether the code block is still streaming. Its result is superseded by
+   * the next update, so it is not cached.
+   */
+  isIncomplete?: boolean;
   language: BundledLanguage;
   themes: [ThemeInput, ThemeInput];
 }
@@ -103,9 +108,65 @@ const highlighterCache = new Map<
   Promise<HighlighterGeneric<BundledLanguage, BundledTheme>>
 >();
 
-// Token cache
-const tokensCache = new Map<string, TokensResult>();
-const MAX_TOKEN_RESULTS = 64;
+// Results of finished code blocks, least recently used first. Results of
+// streaming blocks are not cached: each is superseded by the next update, and
+// the incremental tokenizer below keeps re-highlighting them cheap.
+// The budget follows what a result keeps in memory: its tokens, its lines
+// (blank lines have no tokens) and its code, which long single-token lines
+// are mostly made of. Each token, each line and every 64 characters costs
+// one. The result limit bounds the entries of tiny blocks. The most recent
+// result is always kept, even when it alone is over the budget.
+const MAX_CACHED_COST = 300_000;
+const MAX_CACHED_RESULTS = 5000;
+const CHARACTERS_PER_COST = 64;
+
+interface CachedTokens {
+  cost: number;
+  result: TokensResult;
+}
+
+const tokensCache = new Map<string, CachedTokens>();
+let cachedCost = 0;
+
+// The key holds the code, so its length stands for the code's
+const getCost = (key: string, result: TokensResult): number => {
+  let cost = result.tokens.length + Math.ceil(key.length / CHARACTERS_PER_COST);
+  for (const row of result.tokens) {
+    cost += row.length;
+  }
+  return cost;
+};
+
+const getCachedTokens = (key: string): TokensResult | undefined => {
+  const entry = tokensCache.get(key);
+  if (entry) {
+    // Move to the end so it is evicted last
+    tokensCache.delete(key);
+    tokensCache.set(key, entry);
+  }
+  return entry?.result;
+};
+
+const removeCachedTokens = (key: string): void => {
+  const entry = tokensCache.get(key);
+  if (entry) {
+    tokensCache.delete(key);
+    cachedCost -= entry.cost;
+  }
+};
+
+const setCachedTokens = (key: string, result: TokensResult): void => {
+  removeCachedTokens(key);
+  const cost = getCost(key, result);
+  tokensCache.set(key, { cost, result });
+  cachedCost += cost;
+  while (
+    (cachedCost > MAX_CACHED_COST || tokensCache.size > MAX_CACHED_RESULTS) &&
+    tokensCache.size > 1
+  ) {
+    removeCachedTokens(tokensCache.keys().next().value as string);
+  }
+};
 
 /**
  * Tokenization state carried between highlight requests of one highlighter.
@@ -211,9 +272,6 @@ const tokenize = (
   return { ...tail, tokens: rows.concat(tail.tokens) };
 };
 
-// Subscribers for async token updates
-const subscribers = new Map<string, Set<(result: TokensResult) => void>>();
-
 const getThemeName = (theme: ThemeInput): string =>
   typeof theme === "string" ? theme : (theme.name ?? "custom");
 
@@ -297,7 +355,7 @@ export function createCodePlugin(
     },
 
     highlight(
-      { code, language, themes }: HighlightOptions,
+      { code, language, themes, isIncomplete = false }: HighlightOptions,
       callback?: (result: HighlightResult) => void
     ): HighlightResult | null {
       const resolvedLanguage = normalizeLanguage(language);
@@ -305,27 +363,6 @@ export function createCodePlugin(
         getThemeName(themes[0]),
         getThemeName(themes[1]),
       ];
-      const tokensCacheKey = getTokensCacheKey(
-        code,
-        resolvedLanguage,
-        themes.map(getThemeCacheKey) as [string, string]
-      );
-
-      // Return cached result if available
-      if (tokensCache.has(tokensCacheKey)) {
-        return tokensCache.get(tokensCacheKey) as TokensResult;
-      }
-
-      // Subscribe callback if provided
-      if (callback) {
-        if (!subscribers.has(tokensCacheKey)) {
-          subscribers.set(tokensCacheKey, new Set());
-        }
-        const subs = subscribers.get(tokensCacheKey) as Set<
-          (result: TokensResult) => void
-        >;
-        subs.add(callback);
-      }
 
       // Resolve language to 'text' if not supported (e.g. truncated identifier)
       const safeLanguage: BundledLanguage | SpecialLanguage = languageNames.has(
@@ -333,6 +370,16 @@ export function createCodePlugin(
       )
         ? (resolvedLanguage as BundledLanguage)
         : "text";
+      const tokensCacheKey = getTokensCacheKey(
+        code,
+        safeLanguage,
+        themes.map(getThemeCacheKey) as [string, string]
+      );
+
+      const cached = getCachedTokens(tokensCacheKey);
+      if (cached) {
+        return cached;
+      }
 
       // Start highlighting in background
       getHighlighter(safeLanguage, themes)
@@ -344,35 +391,25 @@ export function createCodePlugin(
               : "text"
           ) as BundledLanguage | SpecialLanguage;
 
-          const result = tokenize(
-            highlighter,
-            code,
-            `${getHighlighterCacheKey(safeLanguage, themes)}:${langToUse}`,
-            langToUse,
-            { light: themeNames[0], dark: themeNames[1] }
-          );
-
-          // Cache the result
-          tokensCache.set(tokensCacheKey, result);
-          if (tokensCache.size > MAX_TOKEN_RESULTS) {
-            const oldest = tokensCache.keys().next().value;
-            if (oldest !== undefined) {
-              tokensCache.delete(oldest);
+          // An earlier request for the same code may have finished first
+          let result = getCachedTokens(tokensCacheKey);
+          if (!result) {
+            result = tokenize(
+              highlighter,
+              code,
+              `${getHighlighterCacheKey(safeLanguage, themes)}:${langToUse}`,
+              langToUse,
+              { light: themeNames[0], dark: themeNames[1] }
+            );
+            if (!isIncomplete) {
+              setCachedTokens(tokensCacheKey, result);
             }
           }
 
-          // Notify all subscribers
-          const subs = subscribers.get(tokensCacheKey);
-          if (subs) {
-            for (const sub of subs) {
-              sub(result);
-            }
-            subscribers.delete(tokensCacheKey);
-          }
+          callback?.(result);
         })
         .catch((error) => {
           console.error("[Streamdown Code] Failed to highlight code:", error);
-          subscribers.delete(tokensCacheKey);
         });
 
       return null;

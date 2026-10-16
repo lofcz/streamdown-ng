@@ -9,6 +9,7 @@ import {
   halfCompleteUnderscorePattern,
   italicPattern,
   listItemPattern,
+  matchTrailing,
   singleAsteriskPattern,
   singleUnderscorePattern,
   whitespaceOrMarkersPattern,
@@ -111,9 +112,6 @@ const shouldCountSingleAsterisk = (
   return { count: false };
 };
 
-// Intraword asterisks are counted only while resolving an active emphasis
-// chain. A lone word-internal * stays literal; a closer can end a run and
-// start another in the same word (e.g. *foo*bar*baz).
 export const countSingleAsterisks = (text: string): number => {
   const scan = getScan(text);
   let count = 0;
@@ -121,6 +119,7 @@ export const countSingleAsterisks = (text: string): number => {
   const len = text.length;
 
   for (let index = 0; index < len; index += 1) {
+    // Code regions neither contribute delimiters nor belong to a word chain
     if (text[index] !== "*" || scan.regions[index] !== REGION.PROSE) {
       if (scan.regions[index] !== REGION.PROSE || !isWordChar(text[index])) {
         inWordAsteriskChain = false;
@@ -393,7 +392,7 @@ const shouldSkipBoldCompletion = (
 
 // Completes incomplete bold formatting (**)
 export const handleIncompleteBold = (text: string): string => {
-  const boldMatch = text.match(boldPattern);
+  const boldMatch = matchTrailing(text, boldPattern);
   if (!boldMatch) {
     return text;
   }
@@ -460,12 +459,15 @@ const shouldSkipItalicCompletion = (
 export const handleIncompleteDoubleUnderscoreItalic = (
   text: string
 ): string => {
-  const italicMatch = text.match(italicPattern);
+  const italicMatch = matchTrailing(text, italicPattern);
   if (!italicMatch) {
     // Check for half-complete closing marker: __content_ should become __content__
     // The pattern /(__)([^_]*?)$/ won't match __content_ because it ends with _
     // So we need a separate check for this case
-    const halfCompleteMatch = text.match(halfCompleteUnderscorePattern);
+    const halfCompleteMatch = matchTrailing(
+      text,
+      halfCompleteUnderscorePattern
+    );
     if (halfCompleteMatch) {
       const markerIndex = text.lastIndexOf(halfCompleteMatch[1]);
       if (
@@ -504,54 +506,56 @@ export const handleIncompleteDoubleUnderscoreItalic = (
 };
 
 // Skips code regions when locating the asterisk.
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: asterisk detection requires many inline conditions
+// A lone, unescaped asterisk in prose outside math: the only positions that
+// can open incomplete italic
+const isLoneProseAsterisk = (scan: TextScan, i: number): boolean => {
+  const { text } = scan;
+  return (
+    text[i] === "*" &&
+    scan.regions[i] === REGION.PROSE &&
+    text[i - 1] !== "*" &&
+    text[i + 1] !== "*" &&
+    text[i - 1] !== "\\" &&
+    !inMathAt(scan, i)
+  );
+};
+
 const findFirstSingleAsteriskIndex = (text: string): number => {
   const scan = getScan(text);
 
-  for (let i = 0; i < text.length; i += 1) {
-    if (
-      text[i] === "*" &&
-      scan.regions[i] === REGION.PROSE &&
-      text[i - 1] !== "*" &&
-      text[i + 1] !== "*" &&
-      text[i - 1] !== "\\" &&
-      !inMathAt(scan, i)
-    ) {
-      const prevChar = i > 0 ? text[i - 1] : "";
-      const nextChar = i < text.length - 1 ? text[i + 1] : "";
-
-      // Skip if flanked by whitespace on both sides (not a valid emphasis delimiter)
-      const prevIsWs = !prevChar || isWhitespaceChar(prevChar);
-      const nextIsWs = !nextChar || isWhitespaceChar(nextChar);
-      if (prevIsWs && nextIsWs) {
-        continue;
-      }
-
-      // Skip cold word-internal asterisks; they are not openers for completion.
-      // (Active-run closers are still counted in countSingleAsterisks.)
-      if (
-        prevChar &&
-        nextChar &&
-        isWordChar(prevChar) &&
-        isWordChar(nextChar)
-      ) {
-        continue;
-      }
-
-      // A right-flanking-only marker cannot open incomplete italic.
-      if (nextIsWs) {
-        continue;
-      }
-
-      return i;
+  for (let i = text.indexOf("*"); i !== -1; i = text.indexOf("*", i + 1)) {
+    if (!isLoneProseAsterisk(scan, i)) {
+      continue;
     }
+    const prevChar = i > 0 ? text[i - 1] : "";
+    const nextChar = i < text.length - 1 ? text[i + 1] : "";
+
+    // Skip if flanked by whitespace on both sides (not a valid emphasis delimiter)
+    const prevIsWs = !prevChar || isWhitespaceChar(prevChar);
+    const nextIsWs = !nextChar || isWhitespaceChar(nextChar);
+    if (prevIsWs && nextIsWs) {
+      continue;
+    }
+
+    // Skip cold word-internal asterisks; they are not openers for completion.
+    // (Active-run closers are still counted in countSingleAsterisks.)
+    if (prevChar && nextChar && isWordChar(prevChar) && isWordChar(nextChar)) {
+      continue;
+    }
+
+    // A right-flanking-only marker cannot open incomplete italic.
+    if (nextIsWs) {
+      continue;
+    }
+
+    return i;
   }
   return -1;
 };
 
 // Completes incomplete italic formatting with single asterisks (*)
 export const handleIncompleteSingleAsteriskItalic = (text: string): string => {
-  const singleAsteriskMatch = text.match(singleAsteriskPattern);
+  const singleAsteriskMatch = matchTrailing(text, singleAsteriskPattern);
 
   if (!singleAsteriskMatch) {
     return text;
@@ -596,9 +600,8 @@ export const handleIncompleteSingleAsteriskItalic = (text: string): string => {
 const findFirstSingleUnderscoreIndex = (text: string): number => {
   const scan = getScan(text);
 
-  for (let i = 0; i < text.length; i += 1) {
+  for (let i = text.indexOf("_"); i !== -1; i = text.indexOf("_", i + 1)) {
     if (
-      text[i] === "_" &&
       scan.regions[i] === REGION.PROSE &&
       text[i - 1] !== "_" &&
       text[i + 1] !== "_" &&
@@ -677,7 +680,7 @@ const handleTrailingAsterisksForUnderscore = (text: string): string | null => {
 export const handleIncompleteSingleUnderscoreItalic = (
   text: string
 ): string => {
-  const singleUnderscoreMatch = text.match(singleUnderscorePattern);
+  const singleUnderscoreMatch = matchTrailing(text, singleUnderscorePattern);
 
   if (!singleUnderscoreMatch) {
     return text;
@@ -760,7 +763,7 @@ export const handleIncompleteBoldItalic = (text: string): string => {
     return text;
   }
 
-  const boldItalicMatch = text.match(boldItalicPattern);
+  const boldItalicMatch = matchTrailing(text, boldItalicPattern);
 
   if (!boldItalicMatch) {
     return text;

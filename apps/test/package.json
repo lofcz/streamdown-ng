@@ -11,6 +11,10 @@
     "@ai-sdk/gateway": "^2.0.20",
     "@ai-sdk/react": "^2.0.113",
     "@radix-ui/react-use-controllable-state": "^1.2.6",
+    "@streamdown-released/cjk": "npm:@lofcz/streamdown-cjk@1.0.5",
+    "@streamdown-released/code": "npm:@lofcz/streamdown-code@2.0.1",
+    "@streamdown-released/math": "npm:@lofcz/streamdown-math@1.0.3",
+    "@streamdown-released/mermaid": "npm:@lofcz/streamdown-mermaid@1.0.2",
     "@streamdown/cjk": "workspace:@lofcz/streamdown-cjk@*",
     "@streamdown/code": "workspace:@lofcz/streamdown-code@*",
     "@streamdown/math": "workspace:@lofcz/streamdown-math@*",
@@ -35,6 +39,7 @@
     "remark-gfm": "npm:@lofcz/remark-gfm@^4.0.1",
     "remark-math": "^6.0.0",
     "streamdown": "workspace:@lofcz/streamdown@*",
+    "streamdown-released": "npm:@lofcz/streamdown@2.16.4",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },

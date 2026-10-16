@@ -111,8 +111,16 @@ const lineEndingPattern = /\r\n|\r/g;
 // Only the block-level tokens are needed here: each block is rendered from its
 // `raw` text by its own remark pipeline later. `Lexer.lex` would also run the
 // inline tokenizer over every block, which is wasted work.
-const lexBlocks = (markdown: string): Token[] =>
-  new Lexer({ gfm: true }).blockTokens(markdown);
+const lexBlocks = (
+  markdown: string
+): { tokens: Token[]; hasLinkDefinitions: boolean } => {
+  const lexer = new Lexer({ gfm: true });
+  const tokens = lexer.blockTokens(markdown);
+  return {
+    tokens,
+    hasLinkDefinitions: Object.keys(lexer.tokens.links).length > 0,
+  };
+};
 
 const linkDefinitionPattern = /^ {0,3}\[[^\]]+\]:/m;
 
@@ -191,7 +199,17 @@ const reuseParsedBlocks = (
     verifiedCount += 1;
   }
 
-  const tailBlocks = parseFn(markdown.slice(verifiedLength)).map(copyString);
+  const tail = markdown.slice(verifiedLength);
+  let tailBlocks: string[];
+  if (parseFn === parseMarkdownIntoBlocks) {
+    const { tokens, hasLinkDefinitions } = lexBlocks(tail);
+    if (hasLinkDefinitions) {
+      return null;
+    }
+    tailBlocks = mergeTokensIntoBlocks(tokens).map(copyString);
+  } else {
+    tailBlocks = parseFn(tail).map(copyString);
+  }
 
   return {
     source: markdown,
@@ -201,7 +219,6 @@ const reuseParsedBlocks = (
   };
 };
 
-// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: "Complex parsing logic that handles multiple markdown edge cases"
 export const parseMarkdownIntoBlocks = (markdown: string): string[] => {
   // Check if the markdown contains footnotes (references or definitions)
   // Footnote references: [^1], [^label], etc.
@@ -216,8 +233,16 @@ export const parseMarkdownIntoBlocks = (markdown: string): string[] => {
   const input = markdown.includes("\r")
     ? markdown.replace(lineEndingPattern, "\n")
     : markdown;
-  const tokens = lexBlocks(input);
+  const { tokens, hasLinkDefinitions } = lexBlocks(input);
+  if (hasLinkDefinitions) {
+    return [copyString(input)];
+  }
 
+  return mergeTokensIntoBlocks(tokens);
+};
+
+// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: "Complex parsing logic that handles multiple markdown edge cases"
+const mergeTokensIntoBlocks = (tokens: Token[]): string[] => {
   // Post-process to merge consecutive blocks that belong together
   const mergedBlocks: string[] = [];
   const htmlStack: string[] = []; // Track opening HTML tags

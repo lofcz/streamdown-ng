@@ -1,12 +1,13 @@
 import {
   type RefObject,
-  useEffect,
   useLayoutEffect,
   useRef,
-  useState,
+  useSyncExternalStore,
 } from "react";
 
 const HIDDEN_ATTRIBUTE = "data-sd-caret-hidden";
+const noop = () => undefined;
+const subscribeToNothing = () => noop;
 
 interface CaretHost {
   showCaret: boolean;
@@ -26,12 +27,11 @@ export const useCaretHost = (
   // Only the client can mark the caret's host, so server markup leaves the
   // caret off the container whenever it should be hidden. The first client
   // render reads the same flag, which keeps hydration matching.
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    if (shouldHideCaret) {
-      setHydrated(true);
-    }
-  }, [shouldHideCaret]);
+  const hydrated = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false
+  );
 
   // Hiding the caret by toggling a class or custom property on the container
   // invalidates style for the whole document, tens of milliseconds on a long

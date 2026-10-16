@@ -17,12 +17,16 @@ import {
   type LinkMode,
 } from "./link-image-handler";
 import { holdPendingInlineMarkers } from "./pending-inline-markers";
+import { clearScanCache } from "./scan";
 import { handleIncompleteSetextHeading } from "./setext-heading-handler";
 import { handleSingleTildeEscape } from "./single-tilde-handler";
 import { handleIncompleteStrikethrough } from "./strikethrough-handler";
 
-export type { LinkMode } from "./link-image-handler";
 // biome-ignore lint/performance/noBarrelFile: "Re-exports utility functions for public API convenience"
+export {
+  INCOMPLETE_IMAGE_PLACEHOLDER,
+  type LinkMode,
+} from "./link-image-handler";
 export {
   isWithinCodeBlock,
   isWithinLinkOrImageUrl,
@@ -314,28 +318,32 @@ const remend = (text: string, options?: RemendOptions): string => {
     (a, b) => (a.handler.priority ?? 0) - (b.handler.priority ?? 0)
   );
 
-  // Execute handlers in priority order
-  for (const { handler, earlyReturn } of allHandlers) {
-    result = handler.handle(result);
+  try {
+    // Execute handlers in priority order
+    for (const { handler, earlyReturn } of allHandlers) {
+      result = handler.handle(result);
 
-    // Check for early return condition (e.g., incomplete link marker)
-    if (earlyReturn?.(result)) {
-      return result;
+      // Check for early return condition (e.g., incomplete link marker)
+      if (earlyReturn?.(result)) {
+        return result;
+      }
     }
-  }
 
-  // A handler that removes a trailing fragment can expose a trailing space
-  // (e.g. dropping an incomplete image). Strip it the same way the input
-  // was stripped, so healed output re-heals to itself.
-  if (
-    result.endsWith(" ") &&
-    !result.endsWith("  ") &&
-    !emptyListMarker.test(result.slice(result.lastIndexOf("\n") + 1))
-  ) {
-    return result.slice(0, -1);
-  }
+    // A handler that removes a trailing fragment can expose a trailing space
+    // (e.g. dropping an incomplete image). Strip it the same way the input
+    // was stripped, so healed output re-heals to itself.
+    if (
+      result.endsWith(" ") &&
+      !result.endsWith("  ") &&
+      !emptyListMarker.test(result.slice(result.lastIndexOf("\n") + 1))
+    ) {
+      return result.slice(0, -1);
+    }
 
-  return result;
+    return result;
+  } finally {
+    clearScanCache();
+  }
 };
 
 export default remend;
