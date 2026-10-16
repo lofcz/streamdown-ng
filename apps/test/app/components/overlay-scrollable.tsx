@@ -30,6 +30,7 @@ const assignScrollRef = (
 export const OverlayScrollable = ({
   scrollRef,
   children,
+  ref: _ignoredRef,
   ...props
 }: ScrollableProps) => (
   <OverlayScrollbarsComponent
