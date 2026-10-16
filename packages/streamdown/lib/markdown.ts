@@ -3,14 +3,14 @@ import { toJsxRuntime } from "hast-util-to-jsx-runtime";
 import { urlAttributes } from "html-url-attributes";
 import type { ComponentType, JSX, ReactElement } from "react";
 import { Fragment, jsx, jsxs } from "react/jsx-runtime";
-import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import remarkParse from "remark-parse";
 import type { Options as RemarkRehypeOptions } from "remark-rehype";
 import remarkRehype from "remark-rehype";
 import type { PluggableList } from "unified";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
-import { remarkEscapeHtml } from "./remark/escape-html";
+import { escapeRawHtml, rehypeRawFallback } from "./rehype/raw-fallback";
 
 export interface ExtraProps {
   node?: Element | undefined;
@@ -99,7 +99,7 @@ class ProcessorCache {
 
     // Fast path for no plugins (most common case)
     if (!(rehypePlugins || remarkPlugins || remarkRehypeOptions)) {
-      const key = "default";
+      const key = options.skipHtml ? "default:skip-html" : "default";
       this.keyCache.set(options, key);
       return key;
     }
@@ -118,7 +118,7 @@ class ProcessorCache {
       ? cacheIdentity(remarkRehypeOptions)
       : "";
 
-    const key = `${remarkKey}::${rehypeKey}::${optionsKey}`;
+    const key = `${remarkKey}::${rehypeKey}::${optionsKey}::${Boolean(options.skipHtml)}`;
 
     // Cache the key in WeakMap for this options object
     this.keyCache.set(options, key);
@@ -185,20 +185,29 @@ const getCachedProcessor = (options: Readonly<Options>) => {
   return processor;
 };
 
-const hasRehypeRaw = (plugins: PluggableList): boolean =>
-  plugins.some((plugin) =>
-    Array.isArray(plugin) ? plugin[0] === rehypeRaw : plugin === rehypeRaw
-  );
-
 const createProcessor = (options: Readonly<Options>) => {
   const rehypePlugins = options.rehypePlugins || EMPTY_PLUGINS;
   const remarkPlugins = options.remarkPlugins || EMPTY_PLUGINS;
 
-  // When rehype-raw is NOT present, escape HTML to display it as text
-  // When rehype-raw IS present, HTML is processed normally
-  const finalRemarkPlugins = hasRehypeRaw(rehypePlugins)
-    ? remarkPlugins
-    : [...remarkPlugins, remarkEscapeHtml];
+  // Let arbitrary HTML parsers run, including minified or wrapped plugins.
+  // Preserve any HTML they leave unparsed before the sanitizer can drop it.
+  const sanitizeWithFallback = (
+    ...parameters: Parameters<typeof rehypeSanitize>
+  ) => {
+    const sanitize = rehypeSanitize(...parameters);
+    return (tree: Root) => {
+      escapeRawHtml(tree, options.skipHtml);
+      return sanitize(tree);
+    };
+  };
+  const safeRehypePlugins: PluggableList = rehypePlugins.map((plugin) => {
+    if (Array.isArray(plugin)) {
+      return plugin[0] === rehypeSanitize
+        ? [sanitizeWithFallback, ...plugin.slice(1)]
+        : plugin;
+    }
+    return plugin === rehypeSanitize ? sanitizeWithFallback : plugin;
+  });
 
   const remarkRehypeOptions = options.remarkRehypeOptions
     ? { ...DEFAULT_REMARK_REHYPE_OPTIONS, ...options.remarkRehypeOptions }
@@ -206,9 +215,10 @@ const createProcessor = (options: Readonly<Options>) => {
 
   return unified()
     .use(remarkParse)
-    .use(finalRemarkPlugins)
+    .use(remarkPlugins)
     .use(remarkRehype, remarkRehypeOptions)
-    .use(rehypePlugins);
+    .use(safeRehypePlugins)
+    .use(rehypeRawFallback, options.skipHtml);
 };
 
 export const defaultUrlTransform: UrlTransform = (value) => value;

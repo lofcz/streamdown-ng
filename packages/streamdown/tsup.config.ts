@@ -1,7 +1,26 @@
-import { defineConfig } from "tsup";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig, type Options } from "tsup";
 
-export default defineConfig({
-  entry: ["index.tsx", "lib/tailwind-classes.ts"],
+type EsbuildPlugin = NonNullable<Options["esbuildPlugins"]>[number];
+const DEFAULT_RAW_FILTER = /default-raw$/;
+const defaultRawPath = fileURLToPath(
+  new URL("lib/default-raw.ts", import.meta.url)
+);
+const coreRawPath = fileURLToPath(
+  new URL("lib/default-raw.core.ts", import.meta.url)
+);
+const omitDefaultRaw: EsbuildPlugin = {
+  name: "streamdown-core-no-raw",
+  setup(build) {
+    build.onResolve({ filter: DEFAULT_RAW_FILTER }, (args) =>
+      `${resolve(args.resolveDir, args.path)}.ts` === defaultRawPath
+        ? { path: coreRawPath }
+        : undefined
+    );
+  },
+};
+const shared = {
   format: ["esm"],
   minify: true,
   outDir: "dist",
@@ -10,4 +29,8 @@ export default defineConfig({
   treeshake: true,
   splitting: true,
   platform: "browser",
-});
+} satisfies Options;
+export default defineConfig([
+  { ...shared, entry: ["index.tsx", "lib/tailwind-classes.ts"] },
+  { ...shared, entry: { core: "core.ts" }, esbuildPlugins: [omitDefaultRaw] },
+]);

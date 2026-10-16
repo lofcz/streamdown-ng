@@ -6,11 +6,19 @@
     "outDir": "./dist",
     "rootDir": ".",
     "paths": {
-      "mdast": ["./node_modules/@types/mdast/index.d.ts"],
-      "unist": ["./node_modules/@types/unist/index.d.ts"]
+      "mdast": [
+        "./node_modules/@types/mdast/index.d.ts"
+      ],
+      "unist": [
+        "./node_modules/@types/unist/index.d.ts"
+      ]
     }
   },
-  "include": ["index.tsx", "lib"],
+  "include": [
+    "index.tsx",
+    "core.ts",
+    "lib"
+  ],
   "exclude": [
     "node_modules",
     "dist",
