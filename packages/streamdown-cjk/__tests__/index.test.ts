@@ -122,6 +122,16 @@ describe("CJK autolink boundary splitting", () => {
     ).toBe("https://example.com/、英語版は別ページです。");
   });
 
+  it.each(["foo", "日本語", "é", "a\u0301"])("preserves intraword underscores after %s", async (prefix) => {
+    const markdown = `${prefix}__https://example.com/__、英語版`;
+    const tree = await processMarkdown(markdown);
+    const strongNodes: Strong[] = [];
+    visit(tree, "strong", (node: Strong) => strongNodes.push(node));
+    expect(getLinks(tree).map((link) => link.url)).toEqual(["https://example.com/__"]);
+    expect(strongNodes).toHaveLength(0);
+    expect(getTexts(tree).map((text) => text.value).join("")).toBe(markdown);
+  });
+
   it("should not treat escaped strong delimiters as autolink formatting", async () => {
     const markdown = String.raw`\*\*https://example.com/**，英語版は別ページです。`;
     const tree = await processMarkdown(markdown);

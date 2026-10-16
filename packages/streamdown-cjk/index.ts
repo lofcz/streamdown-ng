@@ -152,6 +152,14 @@ const findStrongDelimiter = (
     }
 
     const openingOffset = previousEnd - delimiter.length;
+    // Underscores cannot open emphasis within a word. Preserve URL suffixes
+    // in foo__https://example.com/__ rather than treating them as closers.
+    if (
+      delimiter === "__" &&
+      /[^\s\p{P}\p{S}]$/u.test(source.slice(0, openingOffset))
+    ) {
+      continue;
+    }
     const closingOffset = linkStart + boundaryIndex - delimiter.length;
     if (
       hasUnescapedDelimiter(source, openingOffset, delimiter) &&
