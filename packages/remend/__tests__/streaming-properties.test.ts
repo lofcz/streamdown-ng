@@ -56,6 +56,97 @@ const preservedPrefixLength = (input: string, output: string): number => {
   return matched;
 };
 
+interface CodeNode {
+  lang?: string | null;
+  meta?: string | null;
+  position?: { end: { offset?: number }; start: { offset?: number } };
+  type: string;
+  value: string;
+}
+
+interface MdastNode {
+  children?: MdastNode[];
+  lang?: string | null;
+  meta?: string | null;
+  position?: { end: { offset?: number }; start: { offset?: number } };
+  type: string;
+  value?: string;
+}
+
+// A CommonMark parser is the oracle for what is code, including fences nested
+// in block quotes and list items that a line-based scan can miss
+const codeNodes = (markdown: string): CodeNode[] => {
+  const found: CodeNode[] = [];
+  const visit = (node: MdastNode): void => {
+    if (node.type === "code" || node.type === "inlineCode") {
+      found.push({
+        type: node.type,
+        value: node.value ?? "",
+        lang: node.lang,
+        meta: node.meta,
+      });
+    }
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+  visit(fromMarkdown(markdown));
+  return found;
+};
+
+const sameCode = (a: CodeNode, b: CodeNode): boolean =>
+  a.type === b.type &&
+  a.value === b.value &&
+  a.lang === b.lang &&
+  a.meta === b.meta;
+
+// Healing must never change code. Every code block and span the parser finds
+// in the prefix survives unchanged, with two exceptions at the end of the
+// text. Healing strips trailing whitespace, which may trim the last node. And
+// closing an open span absorbs the spans the prefix read inside it: in
+// ``a `b` the prefix holds the span `b`, which closing `` swallows.
+const assertCodeUnchanged = (prefix: string, healed: string): void => {
+  const before = codeNodes(prefix);
+  const after = codeNodes(healed);
+
+  let common = 0;
+  while (
+    common < before.length &&
+    common < after.length &&
+    sameCode(before[common], after[common])
+  ) {
+    common += 1;
+  }
+  const last = before.at(-1);
+  if (
+    common === before.length - 1 &&
+    common === after.length - 1 &&
+    last &&
+    sameCode({ ...last, value: last.value.trimEnd() }, after[common])
+  ) {
+    return;
+  }
+
+  const lost = before.slice(common);
+  const added = after.slice(common);
+  const closedSpan =
+    added.length === 1 &&
+    added[0].type === "inlineCode" &&
+    lost.every(
+      (node) =>
+        node.type === "inlineCode" && added[0].value.includes(node.value)
+    );
+  if (added.length === 0 && lost.length === 0) {
+    return;
+  }
+  if (!closedSpan) {
+    throw new Error(
+      `healing changed code: ${JSON.stringify(prefix)} -> ${JSON.stringify(healed)}\n` +
+        `lost: ${JSON.stringify(lost)}\nadded: ${JSON.stringify(added)}`
+    );
+  }
+};
+
 const assertStreamingSafe = (prefix: string): void => {
   const healed = remend(prefix);
 
@@ -121,6 +212,91 @@ describe("streaming properties", () => {
         expect(remend(doc)).toBe(doc);
       }),
       { numRuns: 1000 }
+    );
+  });
+});
+
+const UNDERSCORE_RUN_TOKENS = [
+  "a",
+  "word",
+  " ",
+  ".",
+  "`",
+  "\\",
+  "_",
+  "__",
+  "___",
+];
+
+const underscoreRunArbitrary = fc
+  .array(fc.constantFrom(...UNDERSCORE_RUN_TOKENS), {
+    minLength: 1,
+    maxLength: 10,
+  })
+  .map((tokens) => tokens.join(""));
+
+// Gaps outside this property: a closer appended after whitespace cannot
+// close, and remend does not recognize indented code blocks
+const TRAILING_WHITESPACE = /\s$/;
+const INDENTED_CODE = /^ {4}/;
+
+const MARKER_PATTERN = /[_*]/g;
+// Closers, after the backslash that escapes a trailing backslash
+const APPENDED_CLOSERS = /^\\?[_*]+$/;
+
+const countLiteralMarkers = (markdown: string): number => {
+  let count = 0;
+  const visit = (node: MdastNode): void => {
+    const start = node.position?.start.offset;
+    const end = node.position?.end.offset;
+    if (node.type === "text" && start !== undefined && end !== undefined) {
+      count += markdown.slice(start, end).match(MARKER_PATTERN)?.length ?? 0;
+    }
+    for (const child of node.children ?? []) {
+      visit(child);
+    }
+  };
+  visit(fromMarkdown(markdown));
+  return count;
+};
+
+// Each marker healing appends must close one the prefix left literal, so the
+// literal count drops by at least as many as were appended. A closer that
+// renders as literal text matched nothing, so remend invented it.
+const assertAppendedClosersMatch = (prefix: string): void => {
+  const healed = remend(prefix);
+  const suffix = healed.slice(prefix.length);
+  if (!(healed.startsWith(prefix) && APPENDED_CLOSERS.test(suffix))) {
+    return;
+  }
+  const appended = suffix.match(MARKER_PATTERN)?.length ?? 0;
+  if (countLiteralMarkers(healed) > countLiteralMarkers(prefix) - appended) {
+    throw new Error(
+      `healing appended an unmatched closer: ${JSON.stringify(prefix)} -> ${JSON.stringify(healed)}`
+    );
+  }
+};
+
+describe("appended closers", () => {
+  it("never appends an underscore closer that matches no opener", () => {
+    fc.assert(
+      fc.property(underscoreRunArbitrary, (prefix) => {
+        fc.pre(
+          !(TRAILING_WHITESPACE.test(prefix) || INDENTED_CODE.test(prefix))
+        );
+        assertAppendedClosersMatch(prefix);
+      }),
+      { numRuns: Number(process.env.NUM_RUNS ?? 2000) }
+    );
+  });
+
+  it("re-heals underscore runs to themselves", () => {
+    fc.assert(
+      fc.property(underscoreRunArbitrary, (prefix) => {
+        const healed = remend(prefix);
+        expect(remend(healed)).toBe(healed);
+      }),
+      { numRuns: Number(process.env.NUM_RUNS ?? 2000) }
     );
   });
 });
