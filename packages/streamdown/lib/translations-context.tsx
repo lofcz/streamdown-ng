@@ -50,9 +50,13 @@ export interface StreamdownTranslations {
   downloadTable: string;
   downloadTableAsCsv: string;
   downloadTableAsMarkdown: string;
+  /** Upstream alias for mermaidRenderFailed. */
+  errorMermaid: string;
   exitFullscreen: string;
   externalLinkWarning: string;
   imageNotAvailable: string;
+  /** Upstream alias for mermaidChart. */
+  mermaidAriaLabel: string;
   mermaidChart: string;
   mermaidErrorLabel: string;
   mermaidFormatMmd: string;
@@ -115,6 +119,7 @@ export const defaultTranslations: StreamdownTranslations = {
   copyModel: "Copy model",
   downloadFile: "Download file",
   // Mermaid
+  mermaidAriaLabel: "Mermaid chart",
   mermaidChart: "Mermaid chart",
   downloadDiagram: "Download diagram",
   downloadDiagramAsSvg: "Download diagram as SVG",
@@ -142,6 +147,7 @@ export const defaultTranslations: StreamdownTranslations = {
   mermaidErrorLabel: "Mermaid Error",
   mermaidPluginMissing:
     "Mermaid plugin not available. Please add the mermaid plugin to enable diagram rendering.",
+  errorMermaid: "Failed to render Mermaid chart",
   mermaidRenderFailed: "Failed to render Mermaid chart",
   plantumlChart: "PlantUML chart",
   plantumlErrorLabel: "PlantUML Error",

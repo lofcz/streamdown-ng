@@ -1,5 +1,5 @@
 ---
-"@lofcz/remend": minor
+"@lofcz/remend": patch
 ---
 
 Heal emphasis the way CommonMark and GFM parse it

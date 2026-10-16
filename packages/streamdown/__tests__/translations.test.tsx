@@ -190,6 +190,58 @@ const mockMermaidPlugin = {
 };
 
 describe("diagram and model translations", () => {
+  it.each([
+    {
+      translations: { mermaidAriaLabel: "Upstream label" },
+      expected: "Upstream label",
+    },
+    {
+      translations: {
+        mermaidAriaLabel: "Upstream label",
+        mermaidChart: "Fork label",
+      },
+      expected: "Fork label",
+    },
+  ])("supports upstream chart labels with fork precedence: $expected", async ({
+    translations,
+    expected,
+  }) => {
+    const { container } = render(
+      <Streamdown
+        plugins={{ mermaid: mockMermaidPlugin }}
+        translations={translations}
+      >
+        {markdownWithMermaid}
+      </Streamdown>
+    );
+    await waitFor(() =>
+      expect(
+        container.querySelector('[role="img"]')?.getAttribute("aria-label")
+      ).toBe(expected)
+    );
+  });
+
+  it("supports the upstream Mermaid error translation", async () => {
+    const plugin = {
+      ...mockMermaidPlugin,
+      getMermaid: () => ({
+        initialize: vi.fn(),
+        render: vi.fn().mockRejectedValue("failure"),
+      }),
+    };
+    const { container } = render(
+      <Streamdown
+        plugins={{ mermaid: plugin }}
+        translations={{ errorMermaid: "Localized failure" }}
+      >
+        {markdownWithMermaid}
+      </Streamdown>
+    );
+    await waitFor(() =>
+      expect(container.textContent).toContain("Localized failure")
+    );
+  });
+
   it("should use copyDiagram for mermaid copy button", async () => {
     const { container } = render(
       <Streamdown plugins={{ mermaid: mockMermaidPlugin }}>

@@ -509,6 +509,8 @@ These labels are shared by Mermaid, PlantUML, and OpenSCAD controls.
 
 ## Partial overrides
 
+The upstream keys `mermaidAriaLabel` and `errorMermaid` are also accepted as aliases for `mermaidChart` and `mermaidRenderFailed`. If both forms are provided, the fork's keys take precedence.
+
 The `translations` prop accepts `Partial<StreamdownTranslations>`. Any key you omit falls back to the built-in English default:
 
 ```tsx title="app/page.tsx"

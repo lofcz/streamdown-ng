@@ -91,6 +91,7 @@ describe("diagram render queue", () => {
     expect(vi.getTimerCount()).toBe(1);
     await act(async () => {
       result.current.requestRender({ ...request(engine), isIncomplete: false });
+      await Promise.resolve();
     });
     expect(render).toHaveBeenCalledTimes(2);
     expect(result.current.svgContent).toContain("final");

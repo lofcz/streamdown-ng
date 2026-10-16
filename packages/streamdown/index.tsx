@@ -1105,7 +1105,18 @@ export const Streamdown = memo(
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: keyed by translationsKey for value equality
     const translationsValue = useMemo(
-      () => ({ ...defaultTranslations, ...translations }),
+      () => ({
+        ...defaultTranslations,
+        ...translations,
+        mermaidChart:
+          translations?.mermaidChart ??
+          translations?.mermaidAriaLabel ??
+          defaultTranslations.mermaidChart,
+        mermaidRenderFailed:
+          translations?.mermaidRenderFailed ??
+          translations?.errorMermaid ??
+          defaultTranslations.mermaidRenderFailed,
+      }),
       [translationsKey]
     );
 
