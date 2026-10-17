@@ -1,5 +1,50 @@
 # streamdown
 
+## 2.16.5
+
+### Patch Changes
+
+- 4c55fad: fix(animate): split CJK text per character in `sep: "word"` mode so every character of a CJK paragraph animates as it streams in, instead of only the first batch
+- 32050fc: fix: export `HighlightResult` and `HighlightToken` types from the package entry
+- 976cf12: fix(translations): add Mermaid chart accessibility translations
+  - Add Mermaid chart ARIA label translation
+  - Add Mermaid rendering error translation
+- 5f0f8c1: Load the word fade from `@lofcz/streamdown/animate` on demand with either the main or core entry. Streaming-mode components with `animated` set share a load after their first client commit, even while `isAnimating` is false. Static history and components without `animated` never request it. Text stays readable while loading, already-visible words stay settled, and later text animates. Failed loads can retry on later updates with bounded backoff.
+
+  Pass `plugins={{ animate }}` from `@lofcz/streamdown/animate` together with `animated` to animate from the first render. `createAnimatePlugin` remains available from the main entry and is also exported from the animation entry.
+
+  Preserve fork effects, smoothing, browser animation draining, processor identity isolation, and active fade timing across streaming updates. Block animation history follows stable block IDs across head edits and growing lines. Effect callback changes are recognized, and eager effect seeds remain stable through server rendering and hydration.
+
+- 6a3fb74: Add `@lofcz/streamdown/core`, whose default rehype plugins omit `rehype-raw`, so `rehype-raw` and `parse5` are not bundled. The main entry still parses HTML by default. Supplied raw HTML parsers work after minification; unparsed HTML is preserved as text without relying on function names, or omitted with `skipHtml`.
+
+  The core and animation entry declarations support NodeNext and bundler module resolution.
+
+- 70f6d07: docs(security): call out that remote images are allowed by default and document restricting image origins for AI chat apps
+- 43fb84f: Keep the loader for incomplete Mermaid charts while their fence streams. Render the final chart immediately when the fence closes, including unchanged source after a failed partial render.
+- 2206c22: fix: resolve reference links whose definition is in another block
+
+  Documents with link reference definitions (`[label]: url`) are now kept in a single block, the same way documents with footnotes are, so `[text][label]` resolves instead of rendering as raw text.
+
+- fea4ef5: fix: set `data-*` and `aria-*` props on the root element. They were only forwarded to the Markdown renderer and the blocks, so with the default renderer attributes such as `data-testid` or `aria-busy` reached no element.
+- 3791ac3: Use logical direction utilities so layout mirrors in right-to-left text.
+
+  `rehypeBlockDirection` already marks blockquotes, list items and table cells
+  with the correct `dir`, but the styling used physical utilities (`pl-4`,
+  `border-l-4`, `text-left`, `right-0`), so none of it mirrored. In RTL the
+  blockquote bar sat across the page from its text, nested lists indented from
+  the wrong edge, and table headers aligned to the opposite side from their own
+  cells.
+
+  Converts the direction-aware surfaces to logical utilities, and teaches `cn`
+  that logical and physical utilities control the same axis — without that,
+  `twMerge("ps-4", "pl-2")` returns both and a consumer's `className` override
+  would be resolved by stylesheet order rather than by intent.
+
+  The code block is deliberately unchanged: it is pinned `dir="ltr"`, so its
+  physical offsets are correct and carry that intent.
+
+- f25e0ae: Avoid rendering and parsing `mode="static"` documents twice on mount
+
 ## 2.16.4
 
 ### Patch Changes
