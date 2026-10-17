@@ -31,6 +31,19 @@ describe("createBlockKeyTracker", () => {
     expect(second[2]).not.toBe(first[1]);
   });
 
+  it("keeps a growing line's key when its newline moves", () => {
+    const track = createBlockKeyTracker("t");
+    const first = track(["# heading\n\n", "- AB\n"]);
+    expect(track(["# heading\n\n", "- AB CD\n"])).toEqual(first);
+    expect(track(["# heading\n\n", "- AB CD EF\r\n"])).toEqual(first);
+  });
+
+  it("preserves meaningful trailing spaces when matching appends", () => {
+    const track = createBlockKeyTracker("t");
+    const first = track(["line  \n"]);
+    expect(track(["line changed\n"])).not.toEqual(first);
+  });
+
   it("preserves keys of blocks moved by a head remove", () => {
     const track = createBlockKeyTracker("t");
     const first = track(["# a", "# b", "# c"]);

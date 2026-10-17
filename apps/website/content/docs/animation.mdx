@@ -8,15 +8,15 @@ related:
   - /docs/memoization
 ---
 
-Streamdown supports per-word streaming animation through the built-in `animated` prop. Words fade in as they mount, creating a smooth text-reveal effect during AI streaming. When streaming ends, the animation is removed entirely, leaving zero DOM overhead on completed messages.
+Streamdown supports per-word streaming animation through the `animated` prop. Words fade in as they mount. After streaming ends, scheduled words finish animating before their wrappers are removed, leaving plain text in completed messages.
 
 ## Enabling animation
 
 Import the animation CSS and set the `animated` prop:
 
 ```tsx title="app/page.tsx"
-import { Streamdown } from "streamdown";
-import "streamdown/styles.css";
+import { Streamdown } from "@lofcz/streamdown";
+import "@lofcz/streamdown/styles.css";
 
 export default function Page() {
   return (
@@ -27,7 +27,33 @@ export default function Page() {
 }
 ```
 
-The `isAnimating` prop controls when the animation is active. When `false`, the animate plugin is excluded from the rehype pipeline entirely, so completed messages render as plain text with no extra `<span>` wrappers.
+The `isAnimating` prop controls streaming. When it turns `false`, the browser's pending text animations drain before the animate plugin is removed. With `smooth`, animation remains active while buffered text is being revealed.
+
+## Loading the animation
+
+The engine is its own module, `@lofcz/streamdown/animate`, usable with both the main and `core` entries. Streamdown starts loading it after a streaming-mode component with `animated` set first commits on the client, even while `isAnimating` is `false`. Components without `animated`, and static history, never request it. Until it arrives, text renders without the fade; already-visible words stay settled and later text animates. A stream that ends before loading finishes is not replayed.
+
+Every instance shares the load. Failed loads leave text readable; later updates can retry after 1, 2, and 4 seconds, with a maximum of four attempts.
+
+To animate from the very first render, pass the module as a plugin as well as setting `animated`. It then ships with your bundle:
+
+```tsx title="app/page.tsx"
+import { Streamdown } from "@lofcz/streamdown";
+import { animate } from "@lofcz/streamdown/animate";
+import "@lofcz/streamdown/styles.css";
+
+export default function Page() {
+  return (
+    <Streamdown
+      animated
+      isAnimating={status === "streaming"}
+      plugins={{ animate }}
+    >
+      {markdown}
+    </Streamdown>
+  );
+}
+```
 
 ## How it works
 
@@ -79,8 +105,8 @@ Words fade in while sliding up 4px, creating a subtle rising effect.
 Pass an options object to `animated` to customize animation behavior:
 
 ```tsx title="app/page.tsx"
-import { Streamdown } from "streamdown";
-import "streamdown/styles.css";
+import { Streamdown } from "@lofcz/streamdown";
+import "@lofcz/streamdown/styles.css";
 
 export default function Page() {
   return (
@@ -107,6 +133,8 @@ export default function Page() {
 | `duration` | `number` | `150` | Animation duration in milliseconds. |
 | `easing` | `string` | `"ease"` | CSS timing function. |
 | `sep` | `"word" \| "char"` | `"word"` | Split text by word or character. |
+| `stagger` | `number` | `40` | Delay between words in milliseconds. Defaults to `0` with `smooth`; an explicit value is retained. |
+| `maxBacklogMs` | `number` | `320` | Soft limit on how far the animation timeline runs ahead of wall-clock time. |
 
 ### Character-level animation
 
@@ -150,7 +178,7 @@ The animation name is automatically prefixed with `sd-`, so define your keyframe
 `animation` also accepts an effect object. An effect bundles a keyframes name with the per-word behavior those keyframes need, such as a scattered reveal order or attributes for your CSS to draw. [`@streamdown/effects`](/docs/plugins/effects) provides ready-made effects.
 
 ```tsx
-import type { AnimationEffect } from "streamdown";
+import type { AnimationEffect } from "@lofcz/streamdown";
 
 const shimmer: AnimationEffect = {
   name: "shimmer", // uses @keyframes sd-shimmer
@@ -171,8 +199,8 @@ const shimmer: AnimationEffect = {
 Use `onAnimationStart` and `onAnimationEnd` to react to animation state changes. These fire when `isAnimating` transitions from `false` to `true` and vice versa. Both callbacks are suppressed in `mode="static"`.
 
 ```tsx title="app/page.tsx"
-import { Streamdown } from "streamdown";
-import "streamdown/styles.css";
+import { Streamdown } from "@lofcz/streamdown";
+import "@lofcz/streamdown/styles.css";
 import { useCallback } from "react";
 
 export default function Page() {
@@ -204,7 +232,7 @@ Memoize callbacks with `useCallback` to avoid unnecessary effect re-runs.
 For direct access to the rehype plugin (e.g. in custom pipelines), use `createAnimatePlugin`:
 
 ```tsx
-import { createAnimatePlugin } from "streamdown";
+import { createAnimatePlugin } from "@lofcz/streamdown/animate";
 
 const animate = createAnimatePlugin({
   animation: "blurIn",

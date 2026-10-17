@@ -1,5 +1,6 @@
 import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { animate } from "../animate";
 import { type BlockProps, Streamdown } from "../index";
 
 const first = "Hello there";
@@ -121,13 +122,23 @@ describe("smooth", () => {
   it("reveals words without a stagger queue when animated", () => {
     const maxDelay = (animated: boolean | { stagger: number }) => {
       const { container, rerender, unmount } = render(
-        <Streamdown animated={animated} isAnimating smooth>
+        <Streamdown
+          animated={animated}
+          isAnimating
+          plugins={{ animate }}
+          smooth
+        >
           {first}
         </Streamdown>
       );
       advance(500);
       rerender(
-        <Streamdown animated={animated} isAnimating smooth>
+        <Streamdown
+          animated={animated}
+          isAnimating
+          plugins={{ animate }}
+          smooth
+        >
           {`${full} `}
         </Streamdown>
       );

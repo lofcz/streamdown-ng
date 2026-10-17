@@ -1,3 +1,4 @@
+import { animate } from "../animate";
 /**
  * React-level coverage for animating non-text elements (list markers,
  * task-list checkboxes, images, horizontal rules).
@@ -22,7 +23,7 @@ const animated = {
 
 const renderAnimated = async (markdown: string) => {
   const result = render(
-    <Streamdown animated={animated} isAnimating={true}>
+    <Streamdown animated={animated} isAnimating={true} plugins={{ animate }}>
       {markdown}
     </Streamdown>
   );
@@ -81,7 +82,7 @@ it("keeps the animated code wrapper when a streamed fence grows", async () => {
 
   clock.mockReturnValue(1050);
   rerender(
-    <Streamdown animated={animated} isAnimating={true}>
+    <Streamdown animated={animated} isAnimating={true} plugins={{ animate }}>
       {`${prefix}\nconst y = 2\n\`\`\``}
     </Streamdown>
   );

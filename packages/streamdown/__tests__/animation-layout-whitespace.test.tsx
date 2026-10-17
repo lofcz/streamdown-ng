@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { animate } from "../animate";
 import { Streamdown } from "../index";
 
 afterEach(() => vi.restoreAllMocks());
@@ -20,7 +21,7 @@ describe.each(["word", "char"] as const)("layout whitespace (%s)", (sep) => {
     const config = { duration: 250, stagger: 10, sep };
     const message = (text: string) => (
       <StrictMode>
-        <Streamdown animated={config} isAnimating>
+        <Streamdown animated={config} isAnimating plugins={{ animate }}>
           {text}
         </Streamdown>
       </StrictMode>
@@ -66,7 +67,7 @@ describe.each([
     const prefix = "1. First\n\n2. *But in ourselves, that we";
     const { container, rerender } = render(
       <StrictMode>
-        <Streamdown animated={config} isAnimating>
+        <Streamdown animated={config} isAnimating plugins={{ animate }}>
           {prefix}
         </Streamdown>
       </StrictMode>
@@ -75,7 +76,7 @@ describe.each([
     await act(() =>
       rerender(
         <StrictMode>
-          <Streamdown animated={config} isAnimating>
+          <Streamdown animated={config} isAnimating plugins={{ animate }}>
             {`${prefix} are underlings.`}
           </Streamdown>
         </StrictMode>
@@ -99,7 +100,7 @@ it("preserves source whitespace between inline elements in the animation offsets
   const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
   const config = { duration: 250, stagger: 10 };
   const message = (text: string) => (
-    <Streamdown animated={config} isAnimating>
+    <Streamdown animated={config} isAnimating plugins={{ animate }}>
       {text}
     </Streamdown>
   );

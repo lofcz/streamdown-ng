@@ -25,6 +25,19 @@
  * The mapping is idempotent for the same input, so StrictMode double-renders
  * produce identical keys.
  */
+const TRAILING_LINE_ENDINGS = /[\r\n]+$/;
+
+const isAppend = (previous: string, next: string): boolean => {
+  if (next.startsWith(previous)) {
+    return true;
+  }
+  // A growing line can retain its terminating newline (e.g. a list item
+  // changes from "- AB\n" to "- AB CD\n"). Its existing DOM and animation
+  // history still belong to the same block. Keep meaningful trailing spaces.
+  const line = previous.replace(TRAILING_LINE_ENDINGS, "");
+  return line.length > 0 && next.startsWith(line);
+};
+
 export function createBlockKeyTracker(prefix: string) {
   let prevBlocks: readonly string[] = [];
   let prevKeys: readonly string[] = [];
@@ -52,7 +65,7 @@ export function createBlockKeyTracker(prefix: string) {
         prevAtPosition !== undefined &&
         prevKeyAtPosition !== undefined &&
         !used.has(prevKeyAtPosition) &&
-        (prevAtPosition === block || block.startsWith(prevAtPosition))
+        isAppend(prevAtPosition, block)
       ) {
         used.add(prevKeyAtPosition);
         return prevKeyAtPosition;

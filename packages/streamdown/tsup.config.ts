@@ -20,6 +20,16 @@ const omitDefaultRaw: EsbuildPlugin = {
     );
   },
 };
+const ANIMATE_ENTRY_IMPORT = /^\.\.\/animate$/;
+const loadAnimateAtRuntime: EsbuildPlugin = {
+  name: "streamdown-lazy-animation",
+  setup(build) {
+    build.onResolve({ filter: ANIMATE_ENTRY_IMPORT }, () => ({
+      external: true,
+      path: "./animate.js",
+    }));
+  },
+};
 const shared = {
   format: ["esm"],
   minify: true,
@@ -31,6 +41,15 @@ const shared = {
   platform: "browser",
 } satisfies Options;
 export default defineConfig([
-  { ...shared, entry: ["index.tsx", "lib/tailwind-classes.ts"] },
-  { ...shared, entry: { core: "core.ts" }, esbuildPlugins: [omitDefaultRaw] },
+  {
+    ...shared,
+    entry: ["index.tsx", "lib/tailwind-classes.ts"],
+    esbuildPlugins: [loadAnimateAtRuntime],
+  },
+  {
+    ...shared,
+    entry: { core: "core.ts" },
+    esbuildPlugins: [omitDefaultRaw, loadAnimateAtRuntime],
+  },
+  { ...shared, entry: ["animate.ts"], splitting: false },
 ]);

@@ -1,3 +1,4 @@
+import { animate } from "../animate";
 /**
  * Tests for fix #410: Ordered list animations incorrectly retrigger
  *
@@ -36,7 +37,11 @@ describe("list animation retrigger fix (#410)", () => {
   it("does not re-animate settled list items when a new item appears", async () => {
     const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
     const { rerender, container } = render(
-      <Streamdown animated={animatedConfig} isAnimating={true}>
+      <Streamdown
+        animated={animatedConfig}
+        isAnimating={true}
+        plugins={{ animate }}
+      >
         {"1. Item 1\n2. Item 2\n"}
       </Streamdown>
     );
@@ -56,7 +61,11 @@ describe("list animation retrigger fix (#410)", () => {
     clock.mockReturnValue(3000);
     await act(() => {
       rerender(
-        <Streamdown animated={animatedConfig} isAnimating={true}>
+        <Streamdown
+          animated={animatedConfig}
+          isAnimating={true}
+          plugins={{ animate }}
+        >
           {"1. Item 1\n2. Item 2\n\n1. Item A\n"}
         </Streamdown>
       );
@@ -99,7 +108,11 @@ describe("list animation retrigger fix (#410)", () => {
     // changes (end column extends). This causes the memo'd MemoLi to
     // re-render, and the animate plugin applies 0ms to already-visible chars.
     const { rerender, container } = render(
-      <Streamdown animated={animatedConfig} isAnimating={true}>
+      <Streamdown
+        animated={animatedConfig}
+        isAnimating={true}
+        plugins={{ animate }}
+      >
         {"- AB\n"}
       </Streamdown>
     );
@@ -120,7 +133,11 @@ describe("list animation retrigger fix (#410)", () => {
     clock.mockReturnValue(3000);
     await act(() => {
       rerender(
-        <Streamdown animated={animatedConfig} isAnimating={true}>
+        <Streamdown
+          animated={animatedConfig}
+          isAnimating={true}
+          plugins={{ animate }}
+        >
           {"- AB CD\n"}
         </Streamdown>
       );
@@ -160,7 +177,11 @@ describe("list animation retrigger fix (#410)", () => {
     });
 
     const { rerender, container } = render(
-      <Streamdown animated={getAnimated()} isAnimating={true}>
+      <Streamdown
+        animated={getAnimated()}
+        isAnimating={true}
+        plugins={{ animate }}
+      >
         {"- Alpha\n- Beta\n"}
       </Streamdown>
     );
@@ -179,7 +200,11 @@ describe("list animation retrigger fix (#410)", () => {
     // re-creates the animated object literal on each render
     await act(() => {
       rerender(
-        <Streamdown animated={getAnimated()} isAnimating={true}>
+        <Streamdown
+          animated={getAnimated()}
+          isAnimating={true}
+          plugins={{ animate }}
+        >
           {"- Alpha\n- Beta\n- Gamma\n"}
         </Streamdown>
       );

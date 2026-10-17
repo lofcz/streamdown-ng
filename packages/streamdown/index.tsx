@@ -21,13 +21,8 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remend, { type RemendOptions } from "remend";
 import type { Pluggable } from "unified";
-import {
-  type AnimateOptions,
-  type AnimatePlugin,
-  type AnimateTimeline,
-  createAnimateTimeline,
-  createRenderAnimatePlugin,
-} from "./lib/animate";
+import type { AnimateOptions, AnimatePlugin } from "./lib/animate.js";
+import { useAnimationEngine } from "./lib/animation-engine";
 import { BlockIncompleteContext } from "./lib/block-incomplete-context";
 import { createBlockKeyTracker } from "./lib/block-keys";
 import { components as builtinComponents } from "./lib/components";
@@ -40,14 +35,18 @@ import {
   type ExtraProps,
   Markdown,
   type Options,
-} from "./lib/markdown";
+} from "./lib/markdown.js";
 import {
   type IncrementalParseState,
   parseMarkdownIntoBlocks,
   parseMarkdownIntoBlocksIncremental,
 } from "./lib/parse-blocks";
 import { PluginContext } from "./lib/plugin-context";
-import type { PluginConfig, ThemeInput } from "./lib/plugin-types";
+import type {
+  AnimationEngine,
+  PluginConfig,
+  ThemeInput,
+} from "./lib/plugin-types.js";
 import { PrefixContext } from "./lib/prefix-context";
 import {
   preprocessCustomTags,
@@ -89,13 +88,14 @@ import {
   TranslationsContext,
 } from "./lib/translations-context";
 import { useAnimationDrain } from "./lib/use-animation-drain";
+import { useBlockAnimation } from "./lib/use-block-animation";
 import { useCaretHost } from "./lib/use-caret-host";
 import { useSmoothStream } from "./lib/use-smooth-stream";
 import { createCn } from "./lib/utils";
 
-export type { AnimateOptions, AnimationEffect } from "./lib/animate";
+export type { AnimateOptions, AnimationEffect } from "./lib/animate.js";
 // biome-ignore lint/performance/noBarrelFile: "required"
-export { createAnimateCursor, createAnimatePlugin } from "./lib/animate";
+export { createAnimateCursor, createAnimatePlugin } from "./lib/animate.js";
 export { useIsCodeFenceIncomplete } from "./lib/block-incomplete-context";
 export { CodeBlock } from "./lib/code-block";
 export { CodeBlockContainer } from "./lib/code-block/container";
@@ -110,14 +110,15 @@ export type {
   Components,
   ExtraProps,
   UrlTransform,
-} from "./lib/markdown";
-export { defaultUrlTransform } from "./lib/markdown";
+} from "./lib/markdown.js";
+export { defaultUrlTransform } from "./lib/markdown.js";
 export type { IncrementalParseState } from "./lib/parse-blocks";
 export {
   parseMarkdownIntoBlocks,
   parseMarkdownIntoBlocksIncremental,
 } from "./lib/parse-blocks";
 export type {
+  AnimationEngine,
   BundledLanguage,
   BundledTheme,
   CjkPlugin,
@@ -142,7 +143,7 @@ export type {
   VegaConfig,
   VegaInstance,
   VegaPlugin,
-} from "./lib/plugin-types";
+} from "./lib/plugin-types.js";
 export { DefaultScrollable } from "./lib/scrollable";
 export type {
   CalloutIconResolver,
@@ -577,6 +578,12 @@ const defaultLinkSafetyConfig: LinkSafetyConfig = {
   enabled: true,
 };
 
+const decoratorIds = new WeakMap<
+  NonNullable<import("./lib/animate.js").AnimationEffect["decorate"]>,
+  number
+>();
+let nextDecoratorId = 0;
+
 const getAnimatedKey = (
   animated: StreamdownProps["animated"],
   smooth: boolean
@@ -584,7 +591,16 @@ const getAnimatedKey = (
   if (!animated) {
     return "";
   }
-  const options = animated === true ? "true" : JSON.stringify(animated);
+  let options = animated === true ? "true" : JSON.stringify(animated);
+  const effect = typeof animated === "object" ? animated.animation : undefined;
+  if (typeof effect === "object" && effect.decorate) {
+    let id = decoratorIds.get(effect.decorate);
+    if (id === undefined) {
+      id = ++nextDecoratorId;
+      decoratorIds.set(effect.decorate, id);
+    }
+    options += `:decorate:${id}`;
+  }
   // Block plugins bake in a stagger default that depends on smooth.
   return smooth ? `${options}:smooth` : options;
 };
@@ -749,6 +765,30 @@ const sameRootAttributes = (
         prevAttributes[name] === nextAttributes[name]
     )
   );
+};
+
+// Counts changes of engine. Its functions are its identity, so an engine
+// object re-created on every render around the same functions keeps the
+// plugins it made, and only an engine with other functions replaces them.
+const useAnimationEngineVersion = (
+  engine: AnimationEngine | undefined
+): number => {
+  const state = useRef<{
+    engine: AnimationEngine | undefined;
+    version: number;
+  }>({ engine: undefined, version: 0 }).current;
+  if (
+    engine &&
+    state.engine &&
+    (engine.createBlockPlugin !== state.engine.createBlockPlugin ||
+      engine.createTimeline !== state.engine.createTimeline)
+  ) {
+    state.version += 1;
+  }
+  if (engine) {
+    state.engine = engine;
+  }
+  return state.version;
 };
 
 export const Streamdown = memo(
@@ -926,12 +966,12 @@ export const Streamdown = memo(
       smoothed,
     ]);
 
-    const blocks = useMemo(() => {
+    const blockState = useMemo(() => {
       // Static Markdown is parsed once by <Markdown> below. Splitting it into
       // streaming blocks here duplicates parsing for every historical message.
       if (mode === "static") {
         incrementalParseRef.current = null;
-        return [];
+        return { blocks: [], sourceBlocks: [] };
       }
       const prev = mode === "streaming" ? incrementalParseRef.current : null;
       const parsed = parseMarkdownIntoBlocksIncremental(
@@ -945,7 +985,7 @@ export const Streamdown = memo(
         !(mode === "streaming" && shouldParseIncompleteMarkdown) ||
         parsed.blocks.length === 0
       ) {
-        return parsed.blocks;
+        return { blocks: parsed.blocks, sourceBlocks: parsed.blocks };
       }
 
       // Close incomplete markers on the open trailing block only. Settled
@@ -958,11 +998,11 @@ export const Streamdown = memo(
           isAnimating && remendOptions?.pendingInlineMarkers,
       });
       if (remended === last) {
-        return parsed.blocks;
+        return { blocks: parsed.blocks, sourceBlocks: parsed.blocks };
       }
       const next = parsed.blocks.slice();
       next[lastIdx] = remended;
-      return next;
+      return { blocks: next, sourceBlocks: parsed.blocks };
     }, [
       processedChildren,
       parseMarkdownIntoBlocksFn,
@@ -981,43 +1021,14 @@ export const Streamdown = memo(
       [animated, smooth]
     );
 
+    const animationEngine = useAnimationEngine(
+      Boolean(animatedKey) && mode !== "static",
+      plugins?.animate
+    );
+    const engineVersion = useAnimationEngineVersion(animationEngine);
+    const animationKey = animatedKey ? `${animatedKey}#${engineVersion}` : "";
     const { containerRef: animationContainerRef, animateText } =
-      useAnimationDrain(isAnimating, animatedKey, mode, children);
-
-    // Shared wall-clock timeline: serializes stagger delays across sibling
-    // blocks AND across streaming ticks (memoized earlier blocks don't
-    // re-render, so a pure render-order counter would miss them). Fixes #482.
-    const animateTimelineRef = useRef<AnimateTimeline | null>(null);
-    // One AnimatePlugin per block so each tracks its own prevContentLength.
-    const blockAnimatePluginsRef = useRef<AnimatePlugin[]>([]);
-    // Per-block rehype plugin arrays (base + that block's animate plugin).
-    // Stable references keep Block's memo from thrashing.
-    const blockRehypePluginsRef = useRef<Pluggable[][]>([]);
-    const prevMergedRehypePluginsRef = useRef<Pluggable[] | null>(null);
-    const prevAnimatedKeyRef = useRef<string>("");
-
-    if (animatedKey) {
-      if (prevAnimatedKeyRef.current !== animatedKey) {
-        prevAnimatedKeyRef.current = animatedKey;
-        const backlog =
-          typeof animated === "object" ? animated.maxBacklogMs : undefined;
-        animateTimelineRef.current = createAnimateTimeline({
-          maxBacklogMs: backlog,
-        });
-        blockAnimatePluginsRef.current = [];
-        blockRehypePluginsRef.current = [];
-      } else if (!animateTimelineRef.current) {
-        animateTimelineRef.current = createAnimateTimeline();
-      }
-      if (animateText && animateTimelineRef.current) {
-        animateTimelineRef.current.beginPass(animateTimelineRef.current.now());
-      }
-    } else {
-      animateTimelineRef.current = null;
-      blockAnimatePluginsRef.current = [];
-      blockRehypePluginsRef.current = [];
-      prevAnimatedKeyRef.current = "";
-    }
+      useAnimationDrain(isAnimating, animationKey, mode, smoothed);
 
     // Defer the blocks reference during streaming so React can drop intermediate
     // values under load. Replaces the previous useState+useEffect+startTransition
@@ -1025,61 +1036,40 @@ export const Streamdown = memo(
     // ref and could exceed React's 50-nested-update limit (React #185) when SSE
     // tokens arrived in bursts faster than commit time. animatePlugin path keeps
     // the synchronous path because the plugin reads block content per-render.
-    const deferredBlocks = useDeferredValue(blocks);
+    const deferredBlockState = useDeferredValue(blockState);
     // Keep sync path while animating so per-block plugins see freshest content;
     // otherwise defer settled/structural work under load (React #185) — but never
     // visually lag the open trailing block. When the settled prefix is unchanged
     // between deferred and fresh arrays, render the latest tip immediately.
-    const blocksToRender = useMemo(() => {
-      if (mode !== "streaming" || animateTimelineRef.current) {
-        return blocks;
-      }
-      if (deferredBlocks === blocks || deferredBlocks.length === 0) {
-        return blocks;
-      }
-      const deferredLen = deferredBlocks.length;
-      const freshLen = blocks.length;
-      if (freshLen === 0) {
-        return deferredBlocks;
-      }
-      // Structure changed (new settled boundary) — use fresh blocks entirely.
-      if (deferredLen !== freshLen) {
-        return blocks;
-      }
-      for (let i = 0; i < deferredLen - 1; i += 1) {
-        if (deferredBlocks[i] !== blocks[i]) {
-          return blocks;
+    const { blocks: blocksToRender, sourceBlocks: blocksToKey } =
+      useMemo(() => {
+        const blocks = blockState.blocks;
+        const deferredBlocks = deferredBlockState.blocks;
+        if (mode !== "streaming" || animationEngine) {
+          return blockState;
         }
-      }
-      // Same settled prefix — swap in the fresh open tip so the UI never lags.
-      const merged = deferredBlocks.slice();
-      merged[deferredLen - 1] = blocks[freshLen - 1];
-      return merged;
-    }, [blocks, deferredBlocks, mode]);
-
-    // Commit the in-flight pass horizon after paint. Discarded concurrent
-    // renders that called beginPass never reach this effect, so they can't
-    // poison nextStartAt.
-    useLayoutEffect(() => {
-      // Removed blocks have no DOM animations to preserve. Keeping their
-      // history makes a replay's first words look already settled.
-      blockAnimatePluginsRef.current.length = Math.min(
-        blockAnimatePluginsRef.current.length,
-        blocksToRender.length
-      );
-      blockRehypePluginsRef.current.length = Math.min(
-        blockRehypePluginsRef.current.length,
-        blocksToRender.length
-      );
-      if (blocksToRender.length === 0) {
-        animateTimelineRef.current = null;
-        prevAnimatedKeyRef.current = "";
-        return;
-      }
-      if (animateText) {
-        animateTimelineRef.current?.commitPass();
-      }
-    });
+        if (deferredBlocks === blocks || deferredBlocks.length === 0) {
+          return blockState;
+        }
+        const deferredLen = deferredBlocks.length;
+        const freshLen = blocks.length;
+        if (freshLen === 0) {
+          return deferredBlockState;
+        }
+        // Structure changed (new settled boundary) — use fresh blocks entirely.
+        if (deferredLen !== freshLen) {
+          return blockState;
+        }
+        for (let i = 0; i < deferredLen - 1; i += 1) {
+          if (deferredBlocks[i] !== blocks[i]) {
+            return blockState;
+          }
+        }
+        // Same settled prefix — swap in the fresh open tip so the UI never lags.
+        const merged = deferredBlocks.slice();
+        merged[deferredLen - 1] = blocks[freshLen - 1];
+        return { blocks: merged, sourceBlocks: blockState.sourceBlocks };
+      }, [blockState, deferredBlockState, mode, animationEngine]);
 
     // Pre-compute per-block text directions when dir="auto" so detection
     // runs once per block change rather than on every render pass.
@@ -1091,13 +1081,13 @@ export const Streamdown = memo(
 
     // Keys follow blocks by content (see createBlockKeyTracker): stable
     // across token appends AND across head inserts/removes, so nodes below
-    // an edit keep their identity instead of being rewritten in place.
+    // an edit keep their identity instead of being rewritten in place. Track
+    // source blocks so remend's generated closing markers cannot rekey them.
     const [trackBlockKeys] = useState(() => createBlockKeyTracker(generatedId));
     const blockKeys = useMemo(
-      () => trackBlockKeys(blocksToRender),
-      [blocksToRender, trackBlockKeys]
+      () => trackBlockKeys(blocksToKey),
+      [blocksToKey, trackBlockKeys]
     );
-
     // Stable key derived from translations values so inline objects don't
     // defeat memoization (same pattern used for `animated` above).
     const translationsKey = useMemo(
@@ -1356,44 +1346,18 @@ export const Streamdown = memo(
     }, [isAnimating, blocksToRender]);
     const { showCaret } = useCaretHost(shouldHideCaret, animationContainerRef);
 
-    // Helper: lazily create a per-block animate plugin and return the
-    // combined rehype plugins array for a given block index.  Extracted
-    // from the render map to keep cognitive complexity within biome limits.
-    const getBlockPlugins = (
-      index: number
-    ): {
-      blockAnimatePlugin: AnimatePlugin | null;
-      blockRehypePlugins: Pluggable[];
-    } => {
-      let blockAnimatePlugin: AnimatePlugin | null = null;
-      if (animateTimelineRef.current && animateText) {
-        if (!blockAnimatePluginsRef.current[index]) {
-          // maxBacklogMs is consumed by the timeline factory, not the plugin.
-          blockAnimatePluginsRef.current[index] = createRenderAnimatePlugin({
-            ...getBlockAnimateOptions(animated, smooth),
-            timeline: animateTimelineRef.current,
-          });
-        }
-        blockAnimatePlugin = blockAnimatePluginsRef.current[index];
-      }
-      // Rebuild per-block rehypePlugins only when the base set changes, so the
-      // Block memo's reference-equality check doesn't force unnecessary re-renders.
-      if (prevMergedRehypePluginsRef.current !== mergedRehypePlugins) {
-        blockRehypePluginsRef.current = [];
-        prevMergedRehypePluginsRef.current = mergedRehypePlugins;
-      }
-      if (blockAnimatePlugin && !blockRehypePluginsRef.current[index]) {
-        blockRehypePluginsRef.current[index] = [
-          ...mergedRehypePlugins,
-          blockAnimatePlugin.rehypePlugin,
-        ];
-      }
-      const blockRehypePlugins =
-        blockAnimatePlugin && blockRehypePluginsRef.current[index]
-          ? blockRehypePluginsRef.current[index]
-          : mergedRehypePlugins;
-      return { blockAnimatePlugin, blockRehypePlugins };
-    };
+    const getBlockPlugins = useBlockAnimation({
+      animatedKey,
+      animateText,
+      animationKey,
+      basePlugins: mergedRehypePlugins,
+      blockKeys,
+      engine: animationEngine,
+      engineVersion,
+      maxBacklogMs:
+        typeof animated === "object" ? animated.maxBacklogMs : undefined,
+      options: getBlockAnimateOptions(animated, smooth),
+    });
 
     // Static mode: simple rendering without streaming features
     if (mode === "static") {

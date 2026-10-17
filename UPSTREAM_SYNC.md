@@ -22,8 +22,8 @@ and tested in this fork.
 | [#668 — quiet partial Mermaid errors](https://github.com/vercel/streamdown/pull/668) | Integrated with adaptation | Keeps the loader while an incomplete chart streams and shows final errors after fence closure. Applied to the shared diagram renderer. Final renders bypass streaming cooldowns even when chart text is unchanged. |
 | [#680 — lazy Mermaid block](https://github.com/vercel/streamdown/pull/680) | Already covered | The fork already loads `DiagramCodeBlock` with one dynamic import, including chart and controls, for every SVG diagram plugin. Retained this broader implementation. |
 | [#678 — drain animation backlog](https://github.com/vercel/streamdown/pull/678) | Already covered | The fork waits for actual browser animations, including delays, rather than a calculated timer. Existing tests cover the final chunk, resumed streams, content changes during drain, and unrelated/infinite animations. |
-| [#663 — optional raw-HTML core entry](https://github.com/vercel/streamdown/pull/663) | Deferred: reproduced production bug | The core entry detects user-supplied `rehypeRaw` by function name. Bundling its registry with `rehype-raw` using esbuild `bundle: true, minify: true` produced `{"name":"De","detected":false}`. The Markdown pipeline would consequently escape HTML before the supplied raw plugin can parse it. Requires reliable detection and a built-consumer regression test before adoption. |
-| [#682 — lazy word-fade engine](https://github.com/vercel/streamdown/pull/682) | Deferred | Changes initial animation behavior and adds loading, retry, hydration, and engine-replacement state for about 1 KiB of reported initial consumer savings. Its plugin-identity cache fix is already present in the fork. Revisit after compatibility with the fork's effects and animation drain is demonstrated. |
+| [#663 — optional raw-HTML core entry](https://github.com/vercel/streamdown/pull/663) | Integrated with correction | Adds `@lofcz/streamdown/core` without `rehype-raw` or `parse5`. Removes the PR's function-name detection, which failed under production minification. Supplied parsers run normally; residual raw nodes become text before sanitization or are omitted with `skipHtml`. Minified consumer tests cover renamed parsers, sanitization, literal HTML, and the dependency boundary. Original PR commit retained. |
+| [#682 — lazy word-fade engine](https://github.com/vercel/streamdown/pull/682) | Integrated with adaptation | Adds `@lofcz/streamdown/animate` and a shared lazy loader for main and core entries, with bounded retry and an eager plugin option. Preserves fork effects, smoothing, actual browser animation draining, and processor identity isolation. Animation history follows block IDs; deterministic effect seeds support eager hydration. Tests cover cold/warm hydration, late loading, engine replacement, effect callback changes, head edits, growing lines, and production bundle boundaries. Original PR commit retained. |
 | [#662 — Geistdocs dependency update](https://github.com/vercel/streamdown/pull/662) | Not applied | Upstream uses Geistdocs v2; the fork retains its local documentation components and current dependency line. An upstream website migration would overwrite fork functionality. |
 | [#649 — Next.js dependency pin](https://github.com/vercel/streamdown/pull/649) | Superseded by upstream main | Applied upstream main's newer Next.js 16.3.7 to both apps instead of the PR's 16.3.6 pin. |
 | [#648 — upstream release PR](https://github.com/vercel/streamdown/pull/648) | Not applied | Fork package names, release versions, and publishing workflow are independent. Incoming changesets use fork package names. |
@@ -90,3 +90,30 @@ follow the fork's existing patch-release policy.
   without a locale redirect, `/docs/configuration` returns `200 text/html`, and
   `/sitemap.xml` returns `200 application/xml`.
 - `git diff --check` passes. Upstream `fea4ef5` is an ancestor of the result.
+
+## Follow-up validation for #663 and #682
+
+Both previously deferred PRs are integrated with their original commits retained.
+The core entry lets supplied parsers run before escaping residual HTML, removing
+the minification-sensitive registry entirely. The animation entry retains fork
+effects, smoothing, browser animation draining, and processor identity caching.
+Block history follows source Markdown before remend adds closing markers, so
+growing emphasis and list lines preserve their DOM and animation state.
+
+- All 12 package builds and declaration generation pass.
+- Both Next.js applications build: all 14 build tasks pass.
+- All 12 package test tasks pass: 2,500 tests, with the existing corpus-dependent
+  benchmark skipped. A subsequent 37-test focused run passes after ESM declaration
+  references were corrected, including two new TypeScript consumer checks for
+  NodeNext and bundler resolution.
+- Production consumer builds verify literal HTML without `rehype-raw`/`parse5`,
+  renamed minified parsers with sanitization, and lazy animation boundaries for
+  both main and core entries. Built rendering tests also exercise both entries
+  alongside the legacy standalone animation plugin.
+- Cold and warm hydration, eager effect hydration, late engine arrival, bounded
+  retries, engine replacement, callback changes, head edits, incomplete emphasis,
+  smoothing, and final browser animation draining have regression coverage.
+- Package exports and tarball contents include core, animate, Tailwind classes,
+  CSS, and declarations. Both new changesets follow the fork's patch policy;
+  package versions remain unchanged.
+- `pnpm check` passes for all 484 checked files, and `git diff --check` passes.

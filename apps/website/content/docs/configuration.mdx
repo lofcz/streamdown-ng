@@ -153,10 +153,21 @@ With `dir="auto"`:
 - `rehype-sanitize` - XSS protection and safe HTML rendering
 - `rehype-harden` - Security hardening (permissive by default: allows all image and link prefixes, data images enabled; see [Security](/docs/security) to restrict image origins for AI chat apps)
 
-**Smaller bundle without raw HTML:** `rehype-raw` pulls in `parse5` (~190 KB minified). If you don't need raw HTML, import from `streamdown/core` instead. It has the same API, but `defaultRehypePlugins` omits `rehype-raw`, so it is not bundled and HTML in Markdown is shown as text. Pass your own `rehype-raw` in `rehypePlugins` to opt back in.
+**Smaller bundle without raw HTML:** Import from `@lofcz/streamdown/core` to omit `rehype-raw` and `parse5`. The API and sanitization defaults are the same; HTML in Markdown is displayed as text. `skipHtml` omits unparsed HTML instead.
 
 ```tsx
-import { Streamdown } from "streamdown/core";
+import { Streamdown } from "@lofcz/streamdown/core";
+```
+
+To opt back into HTML parsing, put your parser before the core entry's default plugins. This also works in minified production builds and with wrappers around `rehype-raw`:
+
+```tsx
+import rehypeRaw from "rehype-raw";
+import { defaultRehypePlugins, Streamdown } from "@lofcz/streamdown/core";
+
+const rehypePlugins = [rehypeRaw, ...Object.values(defaultRehypePlugins)];
+
+<Streamdown rehypePlugins={rehypePlugins}>{markdown}</Streamdown>;
 ```
 
 **Default Remark Plugins:**

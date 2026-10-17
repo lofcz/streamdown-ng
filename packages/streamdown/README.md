@@ -24,6 +24,23 @@ Streamdown powers the [AI Elements Message](https://ai-sdk.dev/elements/componen
 
 ## Installation
 
+The fork also exports `@lofcz/streamdown/core`, which omits `rehype-raw` and
+`parse5` and displays raw HTML as text. A supplied `rehype-raw` plugin can opt
+back into HTML parsing, including in minified builds.
+
+`animated` loads its engine on demand. Import it explicitly to animate from
+the first render, with either the main or core entry:
+
+```tsx
+import { Streamdown } from "@lofcz/streamdown/core";
+import { animate } from "@lofcz/streamdown/animate";
+import "@lofcz/streamdown/styles.css";
+
+<Streamdown animated isAnimating={isStreaming} plugins={{ animate }}>
+  {markdown}
+</Streamdown>;
+```
+
 ```bash
 npm i streamdown
 ```

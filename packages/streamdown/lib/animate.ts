@@ -159,6 +159,8 @@ export interface AnimatePlugin {
    * Prefer `commit()` in React; this is for tests / custom hosts.
    */
   setPrevContentLength: (length: number) => void;
+  /** Count the next committed tree as already visible while the engine loads. */
+  settle: () => void;
   type: "animate";
 }
 
@@ -514,6 +516,7 @@ interface AnimateRenderState {
    */
   pendingMark: number | null;
   prevContentLength: number;
+  settling: boolean;
 }
 
 interface Schedule {
@@ -707,17 +710,19 @@ let instanceId = 0;
  * Streamdown wiring detail — not part of the public `animated` prop surface.
  */
 export function createAnimatePlugin(
-  options?: AnimateOptions & { timeline?: AnimateTimeline }
+  options?: AnimateOptions & { timeline?: AnimateTimeline; seed?: number }
 ): AnimatePlugin {
   return buildAnimatePlugin(options, false);
 }
 
 export const createRenderAnimatePlugin = (
-  options?: AnimateOptions & { timeline?: AnimateTimeline }
+  options?: AnimateOptions & { timeline?: AnimateTimeline; seed?: number }
 ): AnimatePlugin => buildAnimatePlugin(options, true);
 
 function buildAnimatePlugin(
-  options: (AnimateOptions & { timeline?: AnimateTimeline }) | undefined,
+  options:
+    | (AnimateOptions & { timeline?: AnimateTimeline; seed?: number })
+    | undefined,
   styleObjects: boolean
 ): AnimatePlugin {
   const id = instanceId++;
@@ -729,7 +734,7 @@ function buildAnimatePlugin(
     duration: options?.duration ?? effect?.duration ?? 150,
     easing: options?.easing ?? "ease",
     scatter: effect?.scatter ?? 0,
-    seed: id,
+    seed: options?.seed ?? id,
     styleObjects:
       styleObjects &&
       plainStyleValue.test(
@@ -742,6 +747,7 @@ function buildAnimatePlugin(
   };
 
   const renderState: AnimateRenderState = {
+    settling: false,
     committedAnimations: new Map(),
     committedCharCount: 0,
     prevContentLength: 0,
@@ -755,7 +761,9 @@ function buildAnimatePlugin(
     const charCounter = { count: 0, newIndex: 0 };
 
     // Seed the scheduled prefix from the last committed paint (#570 secondary).
-    renderState.prevContentLength = renderState.committedCharCount;
+    renderState.prevContentLength = renderState.settling
+      ? Number.POSITIVE_INFINITY
+      : renderState.committedCharCount;
     renderState.pendingAnimations = new Map();
 
     const timeline = config.timeline;
@@ -818,6 +826,7 @@ function buildAnimatePlugin(
     type: "animate",
     rehypePlugin: rehypeAnimate,
     setPrevContentLength(length: number) {
+      renderState.settling = false;
       renderState.committedCharCount = length;
       renderState.prevContentLength = length;
       renderState.committedAnimations.clear();
@@ -825,12 +834,16 @@ function buildAnimatePlugin(
     getLastRenderCharCount() {
       return renderState.lastRenderCharCount;
     },
+    settle() {
+      renderState.settling = true;
+    },
     commit() {
       renderState.committedCharCount = renderState.lastRenderCharCount;
       renderState.committedAnimations = renderState.pendingAnimations;
       renderState.pendingMark = null;
+      renderState.settling = false;
     },
   };
 }
 
-export const animate = createAnimatePlugin();
+export const animate = /* @__PURE__ */ createAnimatePlugin();

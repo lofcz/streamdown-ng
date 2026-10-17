@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import { describe, expect, it } from "vitest";
+import { animate } from "../animate";
 import { Streamdown } from "../index";
 
 function pendingAnimation() {
@@ -22,7 +23,11 @@ function pendingAnimation() {
 function message(text: string, streaming: boolean) {
   return (
     <StrictMode>
-      <Streamdown animated={{ duration: 250 }} isAnimating={streaming}>
+      <Streamdown
+        animated={{ duration: 250 }}
+        isAnimating={streaming}
+        plugins={{ animate }}
+      >
         {text}
       </Streamdown>
     </StrictMode>

@@ -1,6 +1,7 @@
 import { act, render } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { animate } from "../animate";
 import { Streamdown } from "../index";
 
 afterEach(() => vi.restoreAllMocks());
@@ -13,7 +14,11 @@ describe("animation history after clearing content", () => {
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const message = (text: string) => (
       <StrictMode>
-        <Streamdown animated={{ duration: 250, stagger: 40 }} isAnimating>
+        <Streamdown
+          animated={{ duration: 250, stagger: 40 }}
+          isAnimating
+          plugins={{ animate }}
+        >
           {text}
         </Streamdown>
       </StrictMode>
@@ -46,7 +51,7 @@ describe.each([
     const config = { duration: 250, stagger: 100 };
     const message = (text: string) => {
       const content = (
-        <Streamdown animated={config} isAnimating>
+        <Streamdown animated={config} isAnimating plugins={{ animate }}>
           {text}
         </Streamdown>
       );
@@ -92,7 +97,11 @@ describe.each([
     vi.spyOn(performance, "now").mockImplementation(() => now);
     const message = (text: string) => {
       const content = (
-        <Streamdown animated={{ duration: 250 }} isAnimating>
+        <Streamdown
+          animated={{ duration: 250 }}
+          isAnimating
+          plugins={{ animate }}
+        >
           {text}
         </Streamdown>
       );
@@ -106,5 +115,34 @@ describe.each([
     expect(container.querySelector("[data-sd-animate]")).toBe(word);
     expect(word?.textContent).toBe("Hello");
     expect(word?.getAttribute("style")).toBe(style);
+  });
+
+  it("keeps animation history as remend moves an incomplete emphasis closer", async () => {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(1000);
+    const message = (text: string) => {
+      const content = (
+        <Streamdown
+          animated={{ duration: 250 }}
+          isAnimating
+          plugins={{ animate }}
+        >
+          {text}
+        </Streamdown>
+      );
+      return strict ? <StrictMode>{content}</StrictMode> : content;
+    };
+    const { container, rerender } = render(message("**One"));
+    const word = container.querySelector(
+      '[data-streamdown="strong"] [data-sd-animate]'
+    );
+    expect(word?.textContent).toBe("One");
+    clock.mockReturnValue(2000);
+    await act(() => rerender(message("**One two")));
+    const updated = container.querySelectorAll<HTMLElement>(
+      '[data-streamdown="strong"] [data-sd-animate]'
+    );
+    expect(updated[0]).toBe(word);
+    expect(updated[0].style.getPropertyValue("--sd-duration")).toBe("0ms");
+    expect(updated[1].style.getPropertyValue("--sd-duration")).toBe("250ms");
   });
 });

@@ -1,3 +1,4 @@
+import { animate } from "../animate";
 /**
  * The default markdown components are memoized. The contract those comparators
  * have to honour is:
@@ -94,7 +95,7 @@ describe("memoized components re-render when their output changes", () => {
       "First paragraph with several words here.\n\nSecond paragraph also has words.";
 
     const { container, rerender } = render(
-      <Streamdown animated={animated} isAnimating>
+      <Streamdown animated={animated} isAnimating plugins={{ animate }}>
         {markdown}
       </Streamdown>
     );
@@ -105,7 +106,7 @@ describe("memoized components re-render when their output changes", () => {
     );
 
     rerender(
-      <Streamdown animated={animated} isAnimating={false}>
+      <Streamdown animated={animated} isAnimating={false} plugins={{ animate }}>
         {markdown}
       </Streamdown>
     );

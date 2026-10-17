@@ -107,3 +107,5 @@ export const evaluateConsumer = <T>(entry: string, expression: string): T =>
       { encoding: "utf8" }
     )
   ) as T;
+
+export type ConsumerBundle = ReturnType<typeof bundleConsumer>;
