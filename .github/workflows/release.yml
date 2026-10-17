@@ -58,7 +58,9 @@ jobs:
         run: pnpm build --filter website
 
       - name: Run Tests
-        run: pnpm test
+        # Property tests and wall-clock checks share the runner's CPU.
+        # Bound concurrency and allow long randomized runs to finish.
+        run: pnpm exec turbo run test --concurrency=1 -- --maxWorkers=2 --testTimeout=60000
 
       - name: Check Linting and Formatting
         run: pnpm check
