@@ -1,5 +1,11 @@
 # @streamdown/cjk
 
+## 1.0.6
+
+### Patch Changes
+
+- 354b506: Preserve strong formatting around autolinks followed by CJK punctuation.
+
 ## 1.0.5
 
 ### Patch Changes
