@@ -57,6 +57,7 @@ import { rehypeBlockDirection } from "./lib/rehype/block-direction";
 import { rehypeDataOnlyTags } from "./lib/rehype/data-only-tags";
 import { rehypeLiteralTagContent } from "./lib/rehype/literal-tag-content";
 import { rehypeMarkdownInCustomTags } from "./lib/rehype/markdown-in-custom-tags";
+import { rehypeProtectIdentifiers } from "./lib/rehype/protect-identifiers";
 import { remarkCodeMeta } from "./lib/remark/code-meta";
 import {
   extractCallouts,
@@ -440,11 +441,8 @@ export type StreamdownProps = Options & {
 
 const defaultSanitizeSchema = {
   ...defaultSchema,
-  // remark-rehype already prefixes footnote ids and backref hrefs with
-  // `user-content-` (its default `clobberPrefix`). hast-util-sanitize's default
-  // `clobberPrefix` is also `user-content-`, which would double-prefix ids like
-  // `user-content-user-content-fn-1` while leaving the (already-prefixed) href
-  // pointing at the un-doubled anchor. Disable it here to avoid the mismatch.
+  // Prefix native DOM identifiers after payload extraction instead. This
+  // keeps footnotes prefixed once and custom component identifier props intact.
   clobberPrefix: "",
   protocols: {
     ...defaultSchema.protocols,
@@ -1265,11 +1263,23 @@ export const Streamdown = memo(
         result = [...result, rehypeBlockDirection];
       }
 
+      if (rehypePlugins === defaultRehypePluginsArray) {
+        const componentTags = allowedTagNames.filter(
+          (tag) =>
+            !defaultSchema.tagNames?.includes(tag) &&
+            mergedComponents[tag] &&
+            typeof mergedComponents[tag] !== "string"
+        );
+        result = [...result, [rehypeProtectIdentifiers, componentTags]];
+      }
+
       return result;
     }, [
       rehypePlugins,
       plugins?.math,
       allowedTags,
+      allowedTagNames,
+      mergedComponents,
       markdownContainerTagNames,
       literalTagContent,
       dataOnlyTags,

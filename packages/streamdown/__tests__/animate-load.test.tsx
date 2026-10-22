@@ -13,7 +13,9 @@ type AnimateModule = import("../lib/plugin-types").AnimationEngine;
 // Every call is one fetch of the fade's chunk in a built app.
 const importAnimate = vi.hoisted(() => vi.fn<() => Promise<AnimateModule>>());
 
-vi.mock("../lib/import-animation-engine", () => ({ importAnimationEngine: importAnimate }));
+vi.mock("../lib/import-animation-engine", () => ({
+  importAnimationEngine: importAnimate,
+}));
 
 const realAnimate = async () => (await import("../animate")).animate;
 

@@ -25,59 +25,59 @@ const followedFootnoteReferencePattern = /\[\^[\w-]{1,200}\][^:]/;
 const trailingFootnoteReferencePattern = /\[\^[\w-]{1,200}\]$/;
 
 export const createDefinitionScanner = () => {
-let footnoteReferenceMemo: ScanMemo | null = null;
-let footnoteDefinitionMemo: ScanMemo | null = null;
-let linkDefinitionMemo: ScanMemo | null = null;
+  let footnoteReferenceMemo: ScanMemo | null = null;
+  let footnoteDefinitionMemo: ScanMemo | null = null;
+  let linkDefinitionMemo: ScanMemo | null = null;
 
-const footnoteTail = (memo: ScanMemo, input: string): string =>
-  input.slice(Math.max(0, memo.input.length - footnoteWindow));
+  const footnoteTail = (memo: ScanMemo, input: string): string =>
+    input.slice(Math.max(0, memo.input.length - footnoteWindow));
 
-const hasFootnoteReference = (input: string): boolean => {
-  const memo = footnoteReferenceMemo;
-  const followed = extendsMemo(memo, input)
-    ? memo.found ||
-      followedFootnoteReferencePattern.test(footnoteTail(memo, input))
-    : followedFootnoteReferencePattern.test(input);
-  footnoteReferenceMemo = { input, found: followed };
-  return (
-    followed ||
-    trailingFootnoteReferencePattern.test(input.slice(-footnoteWindow))
-  );
-};
+  const hasFootnoteReference = (input: string): boolean => {
+    const memo = footnoteReferenceMemo;
+    const followed = extendsMemo(memo, input)
+      ? memo.found ||
+        followedFootnoteReferencePattern.test(footnoteTail(memo, input))
+      : followedFootnoteReferencePattern.test(input);
+    footnoteReferenceMemo = { input, found: followed };
+    return (
+      followed ||
+      trailingFootnoteReferencePattern.test(input.slice(-footnoteWindow))
+    );
+  };
 
-const hasFootnoteDefinition = (input: string): boolean => {
-  const memo = footnoteDefinitionMemo;
-  const found = extendsMemo(memo, input)
-    ? memo.found || footnoteDefinitionPattern.test(footnoteTail(memo, input))
-    : footnoteDefinitionPattern.test(input);
-  footnoteDefinitionMemo = { input, found };
-  return found;
-};
+  const hasFootnoteDefinition = (input: string): boolean => {
+    const memo = footnoteDefinitionMemo;
+    const found = extendsMemo(memo, input)
+      ? memo.found || footnoteDefinitionPattern.test(footnoteTail(memo, input))
+      : footnoteDefinitionPattern.test(input);
+    footnoteDefinitionMemo = { input, found };
+    return found;
+  };
 
-const hasLinkDefinition = (input: string): boolean => {
-  const memo = linkDefinitionMemo;
-  let found: boolean;
-  if (!extendsMemo(memo, input)) {
-    found = linkDefinitionPattern.test(input);
-  } else if (memo.found) {
-    found = true;
-  } else {
-    // A new match ends after the previous input, and its label holds no "]",
-    // so it starts on the line after the previous input's last "]" (ignoring
-    // its final character, which a new ":" can follow).
-    const previousLength = memo.input.length;
-    const bracket =
-      previousLength >= 2
-        ? memo.input.lastIndexOf("]", previousLength - 2)
-        : -1;
-    const start = bracket < 0 ? 0 : input.lastIndexOf("\n", bracket) + 1;
-    found = linkDefinitionPattern.test(input.slice(start));
-  }
-  linkDefinitionMemo = { input, found };
-  return found;
-};
+  const hasLinkDefinition = (input: string): boolean => {
+    const memo = linkDefinitionMemo;
+    let found: boolean;
+    if (!extendsMemo(memo, input)) {
+      found = linkDefinitionPattern.test(input);
+    } else if (memo.found) {
+      found = true;
+    } else {
+      // A new match ends after the previous input, and its label holds no "]",
+      // so it starts on the line after the previous input's last "]" (ignoring
+      // its final character, which a new ":" can follow).
+      const previousLength = memo.input.length;
+      const bracket =
+        previousLength >= 2
+          ? memo.input.lastIndexOf("]", previousLength - 2)
+          : -1;
+      const start = bracket < 0 ? 0 : input.lastIndexOf("\n", bracket) + 1;
+      found = linkDefinitionPattern.test(input.slice(start));
+    }
+    linkDefinitionMemo = { input, found };
+    return found;
+  };
 
-return { hasFootnoteReference, hasFootnoteDefinition, hasLinkDefinition };
+  return { hasFootnoteReference, hasFootnoteDefinition, hasLinkDefinition };
 };
 
 export type DefinitionScanner = ReturnType<typeof createDefinitionScanner>;

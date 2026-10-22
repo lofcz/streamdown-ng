@@ -62,7 +62,9 @@ export const createShownTextPlugin = (): ShownTextPlugin => {
     commit() {
       committed = counted;
     },
-    settle() { committed = counted; },
+    settle() {
+      committed = counted;
+    },
     committedCharCount: () => committed,
     getLastRenderCharCount: () => counted,
     setPrevContentLength(length: number) {

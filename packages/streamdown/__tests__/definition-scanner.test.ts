@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createDefinitionScanner } from "../lib/definition-scanner";
-import { parseMarkdownIntoBlocks, parseMarkdownIntoBlocksIncremental } from "../lib/parse-blocks";
+import {
+  type IncrementalParseState,
+  parseMarkdownIntoBlocks,
+  parseMarkdownIntoBlocksIncremental,
+} from "../lib/parse-blocks";
 
 // The full-document patterns that the incremental checks replace.
 const footnoteReferencePattern = /\[\^[\w-]{1,200}\](?!:)/;
@@ -39,7 +43,7 @@ describe("incremental footnote and link-definition checks", () => {
     ];
     for (const document of inputs) {
       for (const seed of [1, 2]) {
-        let previous = null;
+        let previous: IncrementalParseState | null = null;
         let text = "";
         for (const chunk of chunked(document, seed)) {
           text += chunk;
@@ -52,7 +56,8 @@ describe("incremental footnote and link-definition checks", () => {
   });
 
   it("gives each check the same answer as its full regex", () => {
-    const { hasFootnoteReference, hasFootnoteDefinition, hasLinkDefinition } = createDefinitionScanner();
+    const { hasFootnoteReference, hasFootnoteDefinition, hasLinkDefinition } =
+      createDefinitionScanner();
     const checks = [
       [hasFootnoteReference, footnoteReferencePattern],
       [hasFootnoteDefinition, footnoteDefinitionPattern],

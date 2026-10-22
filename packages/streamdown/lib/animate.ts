@@ -1,7 +1,11 @@
 import type { Element, Node, Parent, Root, Text } from "hast";
 import type { Pluggable } from "unified";
 import { SKIP, visitParents } from "unist-util-visit-parents";
-import { ATOMIC_ANIMATE_TAGS, SKIP_TAGS, isLayoutWhitespace } from "./shown-text";
+import {
+  ATOMIC_ANIMATE_TAGS,
+  isLayoutWhitespace,
+  SKIP_TAGS,
+} from "./shown-text";
 
 /**
  * Soft budget for how long a cascade may run ahead of wall-clock.

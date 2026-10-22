@@ -120,7 +120,6 @@ const lexBlocks = (
   };
 };
 
-
 const blankLineEnding = "\n\n";
 
 // Streaming appends text to the end of the document. Text before the tail can

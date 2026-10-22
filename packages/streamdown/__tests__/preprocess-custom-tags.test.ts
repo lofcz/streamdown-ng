@@ -178,7 +178,6 @@ describe("preprocessCustomTags", () => {
   });
 });
 
-
 describe("fenced code inside custom tags", () => {
   it("should keep blank lines inside fenced code blocks in closed tags", () => {
     const md = "<custom>\n```js\nconst a = 1;\n\nconst b = 2;\n```\n</custom>";
