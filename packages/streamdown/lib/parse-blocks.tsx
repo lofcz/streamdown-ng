@@ -1,10 +1,12 @@
 import { Lexer, type Token } from "marked";
+import {
+  createDefinitionScanner,
+  type DefinitionScanner,
+} from "./definition-scanner";
 
 // Regex patterns moved to top level for performance
 // Footnote identifiers must be alphanumeric, underscore, or hyphen (e.g., [^1], [^note], [^my-note])
 // Previously used [^\]\s] which incorrectly matched regex character classes like [^\s...]
-const footnoteReferencePattern = /\[\^[\w-]{1,200}\](?!:)/;
-const footnoteDefinitionPattern = /\[\^[\w-]{1,200}\]:/;
 // Allow hyphens / colons so custom tags like <ai-thinking> are tracked across
 // blank-line interruptions (\w alone only matches [A-Za-z0-9_]).
 const openingTagPattern = /<([A-Za-z][\w:-]*)[\s>/]/;
@@ -100,10 +102,6 @@ const countDoubleDollars = (str: string): number => {
   return count;
 };
 
-const hasFootnotes = (markdown: string): boolean =>
-  footnoteReferencePattern.test(markdown) ||
-  footnoteDefinitionPattern.test(markdown);
-
 // marked's `Lexer.lex` normalizes line endings before tokenizing. Do the same
 // here so that the `raw` text of the block tokens joins back into the input.
 const lineEndingPattern = /\r\n|\r/g;
@@ -122,7 +120,6 @@ const lexBlocks = (
   };
 };
 
-const linkDefinitionPattern = /^ {0,3}\[[^\]]+\]:/m;
 
 const blankLineEnding = "\n\n";
 
@@ -148,6 +145,8 @@ const copyString = (value: string): string => ` ${value}`.slice(1);
 
 export interface IncrementalParseState {
   blocks: string[];
+  /** Independent definition checks for this message's append-only stream. */
+  definitions?: DefinitionScanner;
   /** Tag-preprocessed markdown that produced `blocks` (before last-block remend). */
   source: string;
   /** How many leading blocks have been checked to sit at their expected offsets. */
@@ -157,10 +156,15 @@ export interface IncrementalParseState {
 
 const fullParseState = (
   markdown: string,
-  parseFn: (value: string) => string[]
+  parseFn: (value: string) => string[],
+  definitions = createDefinitionScanner()
 ): IncrementalParseState => ({
   source: markdown,
-  blocks: parseFn(markdown),
+  blocks:
+    parseFn === parseMarkdownIntoBlocks
+      ? parseBlocks(markdown, definitions)
+      : parseFn(markdown),
+  definitions,
   verifiedCount: 0,
   verifiedLength: 0,
 });
@@ -213,20 +217,30 @@ const reuseParsedBlocks = (
 
   return {
     source: markdown,
+    definitions: previous.definitions,
     blocks: previous.blocks.slice(0, stableCount).concat(tailBlocks),
     verifiedCount,
     verifiedLength,
   };
 };
 
-export const parseMarkdownIntoBlocks = (markdown: string): string[] => {
+export const parseMarkdownIntoBlocks = (markdown: string): string[] =>
+  parseBlocks(markdown, createDefinitionScanner());
+
+const parseBlocks = (
+  markdown: string,
+  definitions: DefinitionScanner
+): string[] => {
   // Check if the markdown contains footnotes (references or definitions)
   // Footnote references: [^1], [^label], etc.
   // Footnote definitions: [^1]: text, [^label]: text, etc.
   // Use atomic groups or possessive quantifiers to prevent backtracking
   // If footnotes are present, return the entire document as a single block
   // This ensures footnote references and definitions remain in the same mdast tree
-  if (hasFootnotes(markdown)) {
+  if (
+    definitions.hasFootnoteReference(markdown) ||
+    definitions.hasFootnoteDefinition(markdown)
+  ) {
     return [markdown];
   }
 
@@ -360,15 +374,18 @@ export const parseMarkdownIntoBlocksIncremental = (
 
   // Footnotes must share one mdast tree. Detect them on the full document
   // so a reference in the prefix is not split from a definition in the tail.
+  const definitions = prev.definitions ?? createDefinitionScanner();
   if (
     parseFn === parseMarkdownIntoBlocks &&
-    (hasFootnotes(markdown) || linkDefinitionPattern.test(markdown))
+    (definitions.hasFootnoteReference(markdown) ||
+      definitions.hasFootnoteDefinition(markdown) ||
+      definitions.hasLinkDefinition(markdown))
   ) {
-    return fullParseState(markdown, parseFn);
+    return fullParseState(markdown, parseFn, definitions);
   }
 
   return (
     reuseParsedBlocks(prev, markdown, parseFn) ??
-    fullParseState(markdown, parseFn)
+    fullParseState(markdown, parseFn, definitions)
   );
 };
