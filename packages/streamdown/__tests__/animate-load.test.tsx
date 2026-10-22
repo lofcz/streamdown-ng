@@ -50,7 +50,8 @@ describe("loading the word fade", () => {
 
   it("starts a block's later fade fresh once the first one took over", async () => {
     const Streamdown = await freshStreamdown();
-    importAnimate.mockReturnValueOnce(realAnimate());
+    // A cold module import can outlast flush()'s timer on a busy runner.
+    importAnimate.mockResolvedValueOnce(await realAnimate());
     const { container, rerender } = render(
       <Streamdown animated isAnimating>
         one
@@ -68,7 +69,7 @@ describe("loading the word fade", () => {
 
   it("fades from the first render once it has loaded", async () => {
     const Streamdown = await freshStreamdown();
-    importAnimate.mockReturnValueOnce(realAnimate());
+    importAnimate.mockResolvedValueOnce(await realAnimate());
     render(
       <Streamdown animated isAnimating>
         elsewhere
@@ -108,7 +109,7 @@ describe("loading the word fade", () => {
     const container = document.createElement("div");
     container.innerHTML = renderToString(view("one two"));
     document.body.append(container);
-    importAnimate.mockReturnValueOnce(realAnimate());
+    importAnimate.mockResolvedValueOnce(await realAnimate());
     render(view("elsewhere"));
     await flush();
 
