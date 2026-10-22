@@ -25,20 +25,26 @@ describe("published entry declarations", () => {
     writeFileSync(path.join(directory, "package.json"), '{"type":"module"}');
     writeFileSync(
       path.join(directory, "consumer.ts"),
-      `import { Streamdown, defaultRehypePlugins, type StreamdownProps, type AnimationEffect, type PluginConfig } from "@lofcz/streamdown/core";
+      `import { Streamdown, defaultRehypePlugins, parseMarkdownIntoBlocksIncremental, type IncrementalParseState, type StreamdownProps, type AnimationEffect, type PluginConfig } from "@lofcz/streamdown/core";
 import { animate, createAnimatePlugin, type AnimationEngine } from "@lofcz/streamdown/animate";
 const engine: AnimationEngine = animate;
 const plugins: PluginConfig = { animate: engine };
 const effect: AnimationEffect = { name: "custom", decorate: (word, seed) => ({ "data-word": word, "data-seed": String(seed) }) };
 const options: StreamdownProps = { animated: { animation: effect, duration: 150 }, plugins, rehypePlugins: Object.values(defaultRehypePlugins) };
 const standalone = createAnimatePlugin({ animation: effect });
+const parsed: IncrementalParseState = parseMarkdownIntoBlocksIncremental("text", null);
+parsed.definitions?.hasFootnoteReference("[^note]");
+// @ts-expect-error Scanner declarations must keep their string parameter type.
+parsed.definitions?.hasFootnoteReference(123);
+// @ts-expect-error Raw fence languages must remain strings.
+const invalidLanguages: StreamdownProps = { codeBlockRawLanguages: [123] };
 // @ts-expect-error Public animation options must retain their types.
 const invalid: StreamdownProps = { animated: { duration: "slow" } };
 // @ts-expect-error The engine must retain its timeline option types.
 animate.createTimeline({ maxBacklogMs: "slow" });
 // @ts-expect-error The standalone factory must retain its option types.
 createAnimatePlugin({ duration: "slow" });
-export { Streamdown, options, standalone, invalid };
+export { Streamdown, options, standalone, invalid, invalidLanguages, parsed };
 `
     );
   });

@@ -48,6 +48,30 @@ describe.each([
     expect(container.querySelector("#unsafe")).toBeNull();
   });
 
+  it("keeps footnote links and accessible labels attached to their targets", () => {
+    const { container } = render(
+      <Streamdown linkSafety={{ enabled: false }} mode={mode}>
+        {"A note[^1].\n\n[^1]: Explanation."}
+      </Streamdown>
+    );
+    expect(
+      container.querySelector('[id^="user-content-user-content-"]')
+    ).toBeNull();
+    const references = container.querySelectorAll("a[href^='#']");
+    expect(references.length).toBeGreaterThan(0);
+    for (const anchor of references) {
+      const target = anchor.getAttribute("href")?.slice(1);
+      expect(container.querySelector(`[id="${target}"]`)).toBeTruthy();
+    }
+    for (const node of container.querySelectorAll("[aria-describedby]")) {
+      for (const id of (node.getAttribute("aria-describedby") ?? "").split(
+        " "
+      )) {
+        expect(container.querySelector(`[id="${id}"]`)).toBeTruthy();
+      }
+    }
+  });
+
   it("keeps structured payload identifiers unchanged", () => {
     const Payload = (props: Record<string, unknown>) => (
       <span data-testid="payload">{String(props["data-content"])}</span>

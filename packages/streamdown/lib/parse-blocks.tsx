@@ -2,11 +2,8 @@ import { Lexer, type Token } from "marked";
 import {
   createDefinitionScanner,
   type DefinitionScanner,
-} from "./definition-scanner";
+} from "./definition-scanner.js";
 
-// Regex patterns moved to top level for performance
-// Footnote identifiers must be alphanumeric, underscore, or hyphen (e.g., [^1], [^note], [^my-note])
-// Previously used [^\]\s] which incorrectly matched regex character classes like [^\s...]
 // Allow hyphens / colons so custom tags like <ai-thinking> are tracked across
 // blank-line interruptions (\w alone only matches [A-Za-z0-9_]).
 const openingTagPattern = /<([A-Za-z][\w:-]*)[\s>/]/;

@@ -612,22 +612,31 @@ importers:
 
   packages/streamdown-math:
     dependencies:
+      hast-util-from-html-isomorphic:
+        specifier: ^2.0.0
+        version: 2.0.0
+      hast-util-to-text:
+        specifier: ^4.0.2
+        version: 4.0.2
       katex:
         specifier: ^0.18.2
         version: 0.18.2
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.3
-      rehype-katex:
-        specifier: ^7.0.1
-        version: 7.0.1
       remark-math:
         specifier: ^6.0.0
         version: 6.0.0
+      unist-util-visit-parents:
+        specifier: ^6.0.2
+        version: 6.0.2
     devDependencies:
       '@vitest/coverage-v8':
         specifier: ^4.1.10
         version: 4.1.11(vitest@4.1.11)
+      rehype-katex:
+        specifier: ^7.0.1
+        version: 7.0.1
       remark-parse:
         specifier: ^11.0.0
         version: 11.0.0
@@ -13547,7 +13556,7 @@ snapshots:
       '@shikijs/themes': 3.21.0
       '@shikijs/types': 3.21.0
       '@shikijs/vscode-textmate': 10.0.2
-      '@types/hast': 3.0.4
+      '@types/hast': 3.0.5
 
   shiki@4.4.3:
     dependencies:

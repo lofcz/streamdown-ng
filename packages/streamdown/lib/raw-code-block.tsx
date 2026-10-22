@@ -44,6 +44,7 @@ export const RawCodeBlock = ({
       data-incomplete={isIncomplete}
       data-language={language}
       data-streamdown="raw-code-block"
+      dir="ltr"
       style={RAW_STYLE}
     >
       {code}

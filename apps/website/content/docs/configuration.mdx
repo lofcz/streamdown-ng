@@ -155,6 +155,8 @@ With `dir="auto"`:
 
 **Smaller bundle without raw HTML:** Import from `@lofcz/streamdown/core` to omit `rehype-raw` and `parse5`. The API and sanitization defaults are the same; HTML in Markdown is displayed as text. `skipHtml` omits unparsed HTML instead.
 
+With the default plugins, native HTML `id` and `name` values use the `user-content-` prefix. Local fragment links and accessibility references use the same namespace, and footnote IDs are prefixed once. Identifier props for explicitly mapped custom-tag components and `dataOnlyTags` payloads retain their authored values. Custom components control how those values reach their own DOM.
+
 ```tsx
 import { Streamdown } from "@lofcz/streamdown/core";
 ```

@@ -40,7 +40,7 @@ import {
   type IncrementalParseState,
   parseMarkdownIntoBlocks,
   parseMarkdownIntoBlocksIncremental,
-} from "./lib/parse-blocks";
+} from "./lib/parse-blocks.js";
 import { PluginContext } from "./lib/plugin-context";
 import type {
   AnimationEngine,
@@ -113,11 +113,11 @@ export type {
   UrlTransform,
 } from "./lib/markdown.js";
 export { defaultUrlTransform } from "./lib/markdown.js";
-export type { IncrementalParseState } from "./lib/parse-blocks";
+export type { IncrementalParseState } from "./lib/parse-blocks.js";
 export {
   parseMarkdownIntoBlocks,
   parseMarkdownIntoBlocksIncremental,
-} from "./lib/parse-blocks";
+} from "./lib/parse-blocks.js";
 export type {
   AnimationEngine,
   BundledLanguage,
