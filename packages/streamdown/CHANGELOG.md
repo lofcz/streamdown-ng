@@ -1,5 +1,16 @@
 # streamdown
 
+## 2.16.6
+
+### Patch Changes
+
+- a9fb2a2: Keep blank lines inside fenced code blocks in custom tags instead of rendering `<!---->` placeholders in the code.
+- f477852: Track committed text while the animation engine loads so a late handoff fades newly arriving words without replaying words already shown. Preserve fork animation effects, skipped table text, atomic code blocks, eager engines, and bounded load retries.
+- 546693b: Preserve parsed SVG nodes across diagram context updates by memoizing the HTML markup object. Applies the Mermaid fix from upstream #693 to all SVG diagram plugins.
+- 155a41c: Prefix HTML DOM ids and names to prevent DOM clobbering while keeping footnote anchors aligned. Preserve identifier props passed to explicitly mapped custom components and structured data-only payloads. Fragment links to renamed HTML ids follow their targets.
+- 8b0ca9f: feat: add `codeBlockRawLanguages` option to render selected code fence languages (e.g. ASCII / box-drawing diagrams) verbatim as monospace text without syntax highlighting
+- 1dae7ef: Scan only newly appended text for footnotes and link definitions, with independent scanner state for each message. Retain the fork's existing trailing-block repair and incremental block parser.
+
 ## 2.16.5
 
 ### Patch Changes
