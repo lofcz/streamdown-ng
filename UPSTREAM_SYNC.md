@@ -1,3 +1,84 @@
+# Upstream sync — 2026-10-22
+
+Synchronized the fork from `3c1e65f` with
+[`vercel/streamdown@c5e44d8`](https://github.com/vercel/streamdown/commit/c5e44d8).
+All seven new upstream commits are retained in merge history. Fork package
+names and versions, publishing policy, documentation components, diagram
+adapters, custom tags, smoothing, effects, and incremental rendering remain.
+
+## New and recently updated PRs
+
+Reviewed all 25 open upstream PRs with the GitHub CLI. The primary window was
+October 17–22, also checking updates back to October 8 and recently closed PRs.
+Fetched candidate heads and inspected their commits, diffs, checks, and reviews.
+Upstream main and the selected heads of #670, #682, #692, #693, and #695
+are retained in merge history. #685 and #689 are adapted through the
+corresponding commits in #670.
+
+| Upstream PR | Decision | Reason and adaptation |
+| --- | --- | --- |
+| [#670 — updated emphasis engine](https://github.com/vercel/streamdown/pull/670) | Updated through `321668c` | Keeps the previously integrated 13 emphasis commits and adds current-block link completion. Preserves pending inline markers, incomplete-image placeholders, and empty-list whitespace. |
+| [#685 — current-block links](https://github.com/vercel/streamdown/pull/685) | Integrated through #670 | Uses #670's adaptation to the CommonMark engine rather than duplicating the independent PR's older scanner. Includes its standalone remend regression cases. |
+| [#689 — repair the streaming tail](https://github.com/vercel/streamdown/pull/689) | Relevant optimization adapted through #670 | The fork already repairs only the trailing block and incrementally lexes the tail, including custom-tag messages. Retains that implementation instead of adding a second repair pass. Ports incremental footnote and reference-definition checks, with scanner state per message rather than upstream's module-level memos. Tests compare incremental parsing with full parsing on every prefix and the scans with full regexes. |
+| [#693 — stable Mermaid SVG markup](https://github.com/vercel/streamdown/pull/693) | Integrated and generalized | Memoizes the HTML object in the shared SVG renderer, preserving DOM across context updates for Mermaid, PlantUML, Vega, SMILES, and additional SVG engines. Keeps diagram chunks lazy. |
+| [#682 — revised lazy animation](https://github.com/vercel/streamdown/pull/682) | Updated through `f477852` | Counts committed text while the engine loads and transfers its exact offset to the fade. Preserves the released main/core/animate API, eager engines, effect seeds, smoothing, bounded retries, atomic code-block animation, skipped tables, and actual browser animation draining. Includes discarded-render, hydration, counter-parity, and plugin-identity tests. |
+| [#695 — raw HTML ID hardening](https://github.com/vercel/streamdown/pull/695) | Integrated with compatibility correction | Protects native HTML IDs and names after payload extraction, with one `user-content-` prefix. Local fragment and accessibility references use the same namespace across streaming blocks. Preserves application identifier props for mapped custom components (including Sciobot's entity IDs) and data-only payloads. Unmapped custom DOM elements are protected too. Explicit replacement rehype pipelines retain their own policy. |
+| [#692 — KaTeX patch](https://github.com/vercel/streamdown/pull/692) | Integrated | Updates math and website dependencies to `^0.18.2`, including KaTeX's settings prototype-pollution fix. Bundles the rehype adapter with its shared utilities external so the published renderer uses the package's declared KaTeX runtime instead of rehype-katex's private 0.16.x copy. A built-consumer test verifies which runtime actually renders. Preserves the fork's other direct dependency versions. |
+| [#657 — RTL](https://github.com/vercel/streamdown/pull/657) | Already covered | The updated head offers no additional behavior beyond the fork's logical utilities and merge configuration. Upstream main now contains #654; retain the fork's broader diagram controls, list styling, wrapping, and prefix support. |
+| [#674 — CJK autolinks](https://github.com/vercel/streamdown/pull/674) | Already covered | Head unchanged from the prior sync; retain the fork's correction for URL underscores before CJK punctuation. |
+| [#690 — Version Packages](https://github.com/vercel/streamdown/pull/690) | Not applied | Fork releases and package identities are independent. |
+| [#696 — Geistdocs 2.12.4](https://github.com/vercel/streamdown/pull/696) | Not applied | The fork retains its local documentation components and Geistdocs 1.x. The upstream website migration is incompatible with that setup. |
+| [#346 — code headers](https://github.com/vercel/streamdown/pull/346) | Not applied | Recently closed, with no code updates since January. Its inline component recreation, `any` props, and build/workspace changes do not fit this fork; exported code-block primitives and custom renderers already support composing actions. |
+
+The other reviewed open PRs remain covered by the previous sync or existing
+fork implementations. Closed #688 and #687 were replaced by #689 and #692;
+closed #606 only proposed temporary homepage copy.
+
+## New upstream main changes
+
+- Integrates #684: fenced code inside custom tags keeps its blank lines without
+  visible HTML-comment placeholders. Retains the fork's code-range-aware tag
+  recognition and self-closing-tag handling.
+- Integrates #614: `codeBlockRawLanguages` renders selected fences verbatim,
+  with no highlighting or controls. Custom renderers and all fork diagram
+  plugins take precedence. Raw code stays LTR and honors prefixed classes.
+- Updates both apps to pinned Next.js 16.3.8 from #649.
+- Reconciles #654 RTL and upstream release metadata against the already released
+  fork changes, without duplicating their changesets or changing fork versions.
+- Leaves upstream Geistdocs upgrades out of the fork website.
+
+## Validation
+
+- `pnpm build:packages`: all 12 package builds and declarations pass.
+- `pnpm exec turbo run build --filter=website --filter=test --concurrency=1`:
+  all 14 tasks pass, including both applications on Next.js 16.3.8.
+- `pnpm exec turbo run test --concurrency=1 -- --maxWorkers=2 --testTimeout=60000`:
+  all 12 package tasks pass, with 2,558 passing tests and the existing
+  corpus-dependent benchmark skipped. After binding the published math adapter
+  to its declared KaTeX runtime, all 14 math tests pass, including one new
+  built-consumer regression; total coverage is 2,559 distinct passing tests.
+- `NUM_RUNS=20000 pnpm --filter @lofcz/remend exec vitest run
+  __tests__/emphasis-oracle.test.ts __tests__/streaming-properties.test.ts
+  --maxWorkers=2 --testTimeout=60000`: all 16 tests pass, with 20,000 samples
+  per configurable property.
+- Production consumer tests verify main/core raw-HTML behavior, minified parser
+  compatibility, deferred animation and diagram chunks, and NodeNext/Bundler
+  declaration types. New coverage includes committed animation handoffs,
+  source-block parsing equivalence, native HTML IDs, cross-block local links,
+  footnote accessibility targets, custom component IDs, and structured payloads.
+- The built math consumer intercepts its direct KaTeX dependency and confirms
+  that it renders the formula. Packed math contents include the adapter,
+  declarations, explicit runtime dependencies, and the upstream MIT notice.
+- `pnpm check`: all 495 checked files pass. The changeset action's nine tests
+  pass, and all eight incoming changesets satisfy the fork's patch policy.
+  Release planning includes Streamdown, remend, and math; package versions
+  remain unchanged.
+- The final frozen lockfile check passes. `git diff --check` passes.
+  Upstream main `c5e44d8` and the selected PR heads listed above are ancestors
+  of the result.
+
+---
+
 # Upstream sync — 2026-10-17
 
 The fork was synchronized from `d5de4b4` with
