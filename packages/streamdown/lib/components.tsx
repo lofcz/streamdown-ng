@@ -34,6 +34,7 @@ import {
 } from "./plugin-context";
 import type { OpenScadPlugin } from "./plugin-types";
 import { useCn } from "./prefix-context";
+import { RawCodeBlock } from "./raw-code-block";
 // BundledLanguage type removed - we now support any language string
 import {
   type CalloutStyleResolver,
@@ -1074,6 +1075,7 @@ const CodeComponent = ({
     openscad: openscadContext,
     controls: controlsConfig,
     lineNumbers: contextLineNumbers,
+    codeBlockRawLanguages,
   } = streamdownContext;
   const match = className?.match(LANGUAGE_REGEX);
   const language = match?.at(1) ?? "";
@@ -1214,6 +1216,16 @@ const CodeComponent = ({
           </div>
         </div>
       </Suspense>
+    );
+  }
+
+  if (language && codeBlockRawLanguages?.includes(language)) {
+    return (
+      <RawCodeBlock
+        code={code}
+        isIncomplete={isBlockIncomplete}
+        language={language}
+      />
     );
   }
 

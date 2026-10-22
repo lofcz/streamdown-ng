@@ -194,6 +194,8 @@ export interface StreamdownContextType {
   calloutStyle?: CalloutStyleResolver;
   /** Max height for code blocks (px number or CSS length). `0` / `Infinity` disables. @default 400 */
   codeBlockMaxHeight?: number | string;
+  /** Fence languages rendered verbatim without highlighting or controls. */
+  codeBlockRawLanguages?: string[];
   /** Merged components/plugins so custom renderers (e.g. callout body) can re-parse nested markdown identically to the outer pass. */
   components?: Components;
   controls: ControlsConfig;

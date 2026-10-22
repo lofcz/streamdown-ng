@@ -422,6 +422,8 @@ export type StreamdownProps = Options & {
   prefix?: string;
   /** Show line numbers in code blocks. @default true */
   lineNumbers?: boolean;
+  /** Fence languages rendered verbatim, without highlighting or controls. Custom renderers and diagram plugins take precedence. */
+  codeBlockRawLanguages?: string[];
   /** Called when isAnimating transitions from false to true. Suppressed in mode="static". */
   onAnimationStart?: () => void;
   /** Called when isAnimating transitions from true to false. Suppressed in mode="static". */
@@ -827,6 +829,7 @@ export const Streamdown = memo(
     linkSafety = defaultLinkSafetyConfig,
     portal,
     lineNumbers = true,
+    codeBlockRawLanguages,
     allowedTags,
     fallbackComponent,
     literalTagContent,
@@ -1274,12 +1277,20 @@ export const Streamdown = memo(
       mode,
     ]);
 
+    // Keep inline language arrays from invalidating every context consumer.
+    const rawLanguagesKey = codeBlockRawLanguages?.length
+      ? JSON.stringify(codeBlockRawLanguages)
+      : "";
+
     // Combined context value - single object reduces React tree overhead
     const contextValue = useMemo<StreamdownContextType>(
       () => ({
         calloutIcon,
         calloutStyle,
         codeBlockMaxHeight,
+        codeBlockRawLanguages: rawLanguagesKey
+          ? JSON.parse(rawLanguagesKey)
+          : undefined,
         shikiTheme:
           shikiTheme ?? plugins?.code?.getThemes() ?? defaultShikiTheme,
         controls,
@@ -1305,6 +1316,7 @@ export const Streamdown = memo(
         calloutIcon,
         calloutStyle,
         codeBlockMaxHeight,
+        rawLanguagesKey,
         shikiTheme,
         controls,
         isAnimating,
@@ -1468,6 +1480,10 @@ export const Streamdown = memo(
     prevProps.className === nextProps.className &&
     prevProps.linkSafety === nextProps.linkSafety &&
     prevProps.lineNumbers === nextProps.lineNumbers &&
+    JSON.stringify(prevProps.codeBlockRawLanguages) ===
+      JSON.stringify(nextProps.codeBlockRawLanguages) &&
+    prevProps.codeBlockMaxHeight === nextProps.codeBlockMaxHeight &&
+    prevProps.tableMaxHeight === nextProps.tableMaxHeight &&
     prevProps.calloutIcon === nextProps.calloutIcon &&
     prevProps.calloutStyle === nextProps.calloutStyle &&
     prevProps.normalizeHtmlIndentation === nextProps.normalizeHtmlIndentation &&
