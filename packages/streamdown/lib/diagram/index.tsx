@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useDeferredRender } from "../../hooks/use-deferred-render";
 import { StreamdownContext } from "../../index";
 import { useIsCodeFenceIncomplete } from "../block-incomplete-context";
@@ -93,6 +93,12 @@ export const Diagram = ({
     name,
   ]);
 
+  // A stable object lets React preserve the parsed SVG on context updates.
+  const svgHtml = useMemo(
+    () => ({ __html: svgContent || lastValidSvg }),
+    [svgContent, lastValidSvg]
+  );
+
   if (!(shouldRender || svgContent || lastValidSvg)) {
     return (
       <div className={cn("my-4 min-h-[200px]", className)} ref={containerRef} />
@@ -174,8 +180,6 @@ export const Diagram = ({
     );
   }
 
-  const displaySvg = svgContent || lastValidSvg;
-
   return (
     <div
       className={cn(
@@ -208,7 +212,7 @@ export const Diagram = ({
             fullscreen ? "size-full items-center" : null
           )}
           // biome-ignore lint/security/noDangerouslySetInnerHtml: "Required for diagram SVG"
-          dangerouslySetInnerHTML={{ __html: displaySvg }}
+          dangerouslySetInnerHTML={svgHtml}
           role="img"
         />
       </PanZoom>
