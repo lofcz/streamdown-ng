@@ -1,6 +1,7 @@
 import type { Element, Node, Parent, Root, Text } from "hast";
 import type { Pluggable } from "unified";
 import { SKIP, visitParents } from "unist-util-visit-parents";
+import { ATOMIC_ANIMATE_TAGS, SKIP_TAGS, isLayoutWhitespace } from "./shown-text";
 
 /**
  * Soft budget for how long a cascade may run ahead of wall-clock.
@@ -207,16 +208,6 @@ const WHITESPACE_RE = /\s/;
 const CJK_RE =
   /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\u3000-\u303F\uFF00-\uFFEF]/u;
 const WHITESPACE_ONLY_RE = /^\s+$/;
-// Skip layout-sensitive subtrees. Fenced/highlighted blocks are protected via
-// `pre` (CommonMark always emits `pre > code`); raw inline `code` is safe to
-// animate — word spans inherit styles the same way surrounding prose does (#594).
-// Tables are skipped: transform/filter on cell text promotes compositor layers
-// that desync from the table scrollport (page moves, table stays).
-const SKIP_TAGS = new Set(["pre", "svg", "math", "annotation", "table"]);
-// Code fences reserve one slot without touching syntax-highlighting spans.
-// Like images and rules, the whole element follows the shared timeline.
-const ATOMIC_ANIMATE_TAGS = new Set(["img", "hr", "pre"]);
-
 const isElement = (node: unknown): node is Element =>
   typeof node === "object" &&
   node !== null &&
@@ -558,12 +549,6 @@ const animationTiming = (
   state.pendingAnimations.set(partStart, timing);
   return { duration: config.duration, delay: timing.delay };
 };
-
-// remark-rehype pads block elements with positionless newlines. They are not
-// streamed content: trailing padding must not make the next word look old, and
-// adding <p> wrappers to a loose list must not shift existing animation offsets.
-const isLayoutWhitespace = (node: Text): boolean =>
-  !node.position && WHITESPACE_ONLY_RE.test(node.value);
 
 const isAtomicAnimateElement = (node: Node): node is Element =>
   isElement(node) && ATOMIC_ANIMATE_TAGS.has(node.tagName);

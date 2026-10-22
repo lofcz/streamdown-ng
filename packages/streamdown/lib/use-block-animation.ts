@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { Pluggable } from "unified";
 import type { AnimateOptions, AnimatePlugin, AnimateTimeline } from "./animate";
 import type { AnimationEngine } from "./plugin-types";
+import { createShownTextPlugin, type ShownTextPlugin } from "./shown-text";
 
 interface BlockAnimationOptions {
   animatedKey: string;
@@ -22,7 +23,7 @@ interface AnimationState {
   plugins: Map<string, AnimatePlugin>;
   rehype: Map<string, Pluggable[]>;
   replaced: Map<string, AnimatePlugin>;
-  shown: Set<string>;
+  shown: Map<string, ShownTextPlugin>;
   timeline: AnimateTimeline | undefined;
 }
 
@@ -73,12 +74,12 @@ const commitBlocks = (state: AnimationState, config: BlockAnimationOptions) => {
     }
   }
   // Only committed DOM counts as visible while a lazy engine is unavailable.
-  if (!animatedKey || (engine && animateText)) {
+  if (!animatedKey) {
     state.shown.clear();
-  } else {
+  } else if (engine && animateText) {
     for (const key of blockKeys) {
-      if (!(engine && state.plugins.has(key))) {
-        state.shown.add(key);
+      if (state.plugins.has(key)) {
+        state.shown.delete(key);
       }
     }
   }
@@ -97,7 +98,15 @@ const pluginForBlock = (
   key: string
 ): AnimatePlugin | null => {
   if (!(config.engine && state.timeline && config.animateText)) {
-    return null;
+    if (!config.animatedKey) {
+      return null;
+    }
+    let shown = state.shown.get(key);
+    if (!shown) {
+      shown = createShownTextPlugin();
+      state.shown.set(key, shown);
+    }
+    return shown;
   }
   const cached = state.plugins.get(key);
   if (cached) {
@@ -111,8 +120,11 @@ const pluginForBlock = (
   const replaced = state.replaced.get(key);
   if (replaced) {
     plugin.setPrevContentLength(replaced.getLastRenderCharCount());
-  } else if (state.shown.has(key)) {
-    plugin.settle();
+  } else {
+    const shown = state.shown.get(key);
+    if (shown) {
+      plugin.setPrevContentLength(shown.committedCharCount());
+    }
   }
   state.plugins.set(key, plugin);
   return plugin;
@@ -128,7 +140,7 @@ export const useBlockAnimation = (config: BlockAnimationOptions) => {
     plugins: new Map(),
     rehype: new Map(),
     replaced: new Map(),
-    shown: new Set(),
+    shown: new Map(),
     timeline: undefined,
   };
   const state = stateRef.current;
@@ -146,7 +158,7 @@ export const useBlockAnimation = (config: BlockAnimationOptions) => {
       return { blockAnimatePlugin, blockRehypePlugins: config.basePlugins };
     }
     let blockRehypePlugins = state.rehype.get(key);
-    if (!blockRehypePlugins) {
+    if (blockRehypePlugins?.at(-1) !== blockAnimatePlugin.rehypePlugin) {
       blockRehypePlugins = [
         ...config.basePlugins,
         blockAnimatePlugin.rehypePlugin,
