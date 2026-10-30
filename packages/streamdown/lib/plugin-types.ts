@@ -144,6 +144,8 @@ export interface SvgDiagramPlugin {
    */
   sourceExtension?: string;
   type: "diagram";
+  /** Defer expensive/strict renderers until the streaming code fence closes. */
+  waitForClosedFence?: boolean;
 }
 
 /**

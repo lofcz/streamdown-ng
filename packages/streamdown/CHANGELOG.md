@@ -1,5 +1,11 @@
 # streamdown
 
+## 2.17.0
+
+### Minor Changes
+
+- Add createTikzPlugin for standard TikZ fences with an injected TeX renderer, shared diagram controls and .tex source downloads. Strict diagram engines can defer rendering until their streaming fence closes. TikZ SVG output stays isolated in an image document.
+
 ## 2.16.6
 
 ### Patch Changes

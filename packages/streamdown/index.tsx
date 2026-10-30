@@ -192,6 +192,11 @@ export {
   tableDataToMarkdown,
   tableDataToTSV,
 } from "./lib/table/utils";
+export {
+  createTikzPlugin,
+  type TikzImage,
+  type TikzPluginOptions,
+} from "./lib/tikz";
 export type { StreamdownTranslations } from "./lib/translations-context";
 export {
   defaultTranslations,

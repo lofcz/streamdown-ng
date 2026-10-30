@@ -50,7 +50,8 @@ export const Diagram = ({
   const ErrorComponent = diagramOptions?.errorComponent;
   const isBlockIncomplete = useIsCodeFenceIncomplete();
   const isStreamingMermaid = name === "mermaid" && isBlockIncomplete;
-  const waitForClosedFence = DEFER_UNTIL_FENCE_CLOSED.has(name);
+  const waitForClosedFence =
+    plugin?.waitForClosedFence ?? DEFER_UNTIL_FENCE_CLOSED.has(name);
 
   const { shouldRender, containerRef } = useDeferredRender({
     immediate: fullscreen,
