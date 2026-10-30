@@ -246,3 +246,28 @@ Combine with explicit overrides when some tags need special treatment:
   {markdown}
 </Streamdown>
 ```
+
+### TikZ figures
+
+`createTikzPlugin` renders standard `tikz` fences through the shared diagram viewer, including source, zoom, fullscreen and downloads. Inject a compiler such as `jmckalex/mp-tikz-wasm`; the TeX runtime is not bundled with Streamdown.
+
+```tsx
+import { Streamdown, createTikzPlugin } from "@lofcz/streamdown";
+
+const tikz = createTikzPlugin({
+  render: async (source) => {
+    const response = await fetch("/api/tikz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source }),
+    });
+    if (!response.ok) throw new Error("TikZ compilation failed");
+    // { src: "data:image/svg+xml;base64,...", width: number, height: number }
+    return response.json();
+  },
+});
+
+<Streamdown plugins={{ diagrams: [tikz] }}>{markdown}</Streamdown>;
+```
+
+Compilation waits for the closing fence. Source is limited to 12,000 characters; the host compiler should also enforce time and resource limits. Compiled SVG is displayed as an isolated image so TeX specials cannot inject active markup into the surrounding page.

@@ -35,7 +35,8 @@ jobs:
         run: pnpm build --filter website
 
       - name: Run Tests
-        run: pnpm test
+        # Match release CI: bound worker contention for randomized tests.
+        run: pnpm exec turbo run test --concurrency=1 -- --maxWorkers=2 --testTimeout=60000
 
       # The action is outside the pnpm workspace (apps/*, packages/*), so
       # `pnpm test` does not reach it. It has no dependencies of its own.
