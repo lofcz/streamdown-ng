@@ -1,5 +1,11 @@
 # streamdown
 
+## 2.17.1
+
+### Patch Changes
+
+- dfbac90: Accept @lofcz/tikz rendering results directly in the TikZ plugin, retaining legacy src responses and isolated SVG display. Document local browser-worker rendering with the maintained TikZ package and self-hosted static assets.
+
 ## 2.17.0
 
 ### Minor Changes
