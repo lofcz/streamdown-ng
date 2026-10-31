@@ -1,14 +1,16 @@
 import type { SvgDiagramPlugin } from "./plugin-types";
 
-export interface TikzImage {
+interface TikzDimensions {
   height: number;
-  /** Base64 SVG image URL returned by a trusted TeX/WASM renderer. */
-  src: string;
   width: number;
 }
 
+/** Accept @lofcz/tikz results directly, or legacy endpoint image responses. */
+export type TikzImage = TikzDimensions &
+  ({ dataUrl: string; src?: string } | { src: string; dataUrl?: string });
+
 export interface TikzPluginOptions {
-  /** Compile standard TikZ, e.g. with jmckalex/mp-tikz-wasm on your server. */
+  /** Compile standard TikZ, e.g. with @lofcz/tikz on your server. */
   render: (source: string) => Promise<TikzImage>;
 }
 
@@ -35,9 +37,12 @@ export function createTikzPlugin(options: TikzPluginOptions): SvgDiagramPlugin {
       }
       const result = Promise.resolve()
         .then(() => options.render(source))
-        .then(({ src, width, height }) => {
+        .then((image) => {
+          const { width, height } = image;
+          const src = image.dataUrl ?? image.src;
           if (
             !(
+              typeof src === "string" &&
               SVG_IMAGE.test(src) &&
               Number.isFinite(width) &&
               Number.isFinite(height) &&

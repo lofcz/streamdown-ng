@@ -7,6 +7,25 @@ const image = {
   height: 50,
 };
 describe("TikZ plugin", () => {
+  it("accepts @lofcz/tikz results directly and keeps raw SVG isolated", async () => {
+    const plugin = createTikzPlugin({
+      render: async () => ({
+        dataUrl: image.src,
+        width: 100,
+        height: 50,
+        svg: '<svg onload="alert(1)"/>',
+      }),
+    });
+    const rendered = await plugin.render("source");
+    expect(rendered.svg).toContain(image.src);
+    expect(rendered.svg).not.toContain("onload");
+  });
+  it("validates dataUrl even when a legacy src is also present", async () => {
+    const plugin = createTikzPlugin({
+      render: async () => ({ ...image, dataUrl: "javascript:alert(1)" }),
+    });
+    await expect(plugin.render("source")).rejects.toThrow("Invalid TikZ");
+  });
   it("defers incomplete fences, preserves TeX downloads and shares a render with fullscreen", async () => {
     const render = vi.fn(async () => image);
     const plugin = createTikzPlugin({ render });

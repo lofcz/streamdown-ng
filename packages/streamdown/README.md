@@ -249,25 +249,21 @@ Combine with explicit overrides when some tags need special treatment:
 
 ### TikZ figures
 
-`createTikzPlugin` renders standard `tikz` fences through the shared diagram viewer, including source, zoom, fullscreen and downloads. Inject a compiler such as `jmckalex/mp-tikz-wasm`; the TeX runtime is not bundled with Streamdown.
+`createTikzPlugin` renders standard `tikz` fences through the shared diagram viewer, including source, zoom, fullscreen and downloads. Use [`@lofcz/tikz`](https://github.com/lofcz/tikz)'s browser worker to compile locally without a rendering endpoint.
 
 ```tsx
 import { Streamdown, createTikzPlugin } from "@lofcz/streamdown";
+import { createTikzRenderer } from "@lofcz/tikz/browser";
 
-const tikz = createTikzPlugin({
-  render: async (source) => {
-    const response = await fetch("/api/tikz", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ source }),
-    });
-    if (!response.ok) throw new Error("TikZ compilation failed");
-    // { src: "data:image/svg+xml;base64,...", width: number, height: number }
-    return response.json();
-  },
-});
+const renderer = createTikzRenderer({ assetBaseUrl: "/tikz/" });
+const tikz = createTikzPlugin({ render: (source) => renderer.render(source) });
 
 <Streamdown plugins={{ diagrams: [tikz] }}>{markdown}</Streamdown>;
+// Dispose the renderer when its host is destroyed.
 ```
+
+During the application build, call `copyTikzBrowserAssets("public/tikz")` from `@lofcz/tikz/deploy` and serve that directory from `/tikz/`. Use a versioned URL in production. The runtime loads only when a figure is rendered and compiles in a terminable worker, leaving the UI responsive. Streamdown itself does not bundle TeX or require a backend.
+
+Both `@lofcz/tikz` results (`dataUrl`) and legacy endpoint responses (`src`) are accepted. Hosts that need server compilation can still inject their own `render` callback.
 
 Compilation waits for the closing fence. Source is limited to 12,000 characters; the host compiler should also enforce time and resource limits. Compiled SVG is displayed as an isolated image so TeX specials cannot inject active markup into the surrounding page.
