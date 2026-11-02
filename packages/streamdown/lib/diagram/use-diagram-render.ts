@@ -27,6 +27,7 @@ const sameRenderer = (
 
 export const useDiagramRender = () => {
   const [error, setError] = useState<string | null>(null);
+  const [errorChart, setErrorChart] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [svgContent, setSvgContent] = useState("");
   const [svgSize, setSvgSize] = useState<{
@@ -79,6 +80,7 @@ export const useDiagramRender = () => {
     } catch (err) {
       if (mounted.current && latest.current === request) {
         setError(err instanceof Error ? err.message : request.failedMessage);
+        setErrorChart(request.chart);
       }
     }
     if (!mounted.current) {
@@ -121,5 +123,13 @@ export const useDiagramRender = () => {
     [pump]
   );
 
-  return { error, setError, isLoading, svgContent, svgSize, requestRender };
+  return {
+    error,
+    errorChart,
+    setError,
+    isLoading,
+    svgContent,
+    svgSize,
+    requestRender,
+  };
 };
