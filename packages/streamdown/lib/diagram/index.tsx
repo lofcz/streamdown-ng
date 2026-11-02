@@ -41,8 +41,15 @@ export const Diagram = ({
   const cn = useCn();
   const t = useTranslations();
   const name = plugin?.name ?? fallbackName ?? "diagram";
-  const { error, setError, isLoading, svgContent, svgSize, requestRender } =
-    useDiagramRender();
+  const {
+    error,
+    errorChart,
+    setError,
+    isLoading,
+    svgContent,
+    svgSize,
+    requestRender,
+  } = useDiagramRender();
   const lastValidSvg = svgContent;
   const [retryCount, setRetryCount] = useState(0);
   const streamdownContext = useContext(StreamdownContext);
@@ -146,7 +153,10 @@ export const Diagram = ({
     );
   }
 
-  if (error && !svgContent && !lastValidSvg) {
+  // A completed edit that fails must reach the host's repair component even
+  // when an older preview rendered successfully. Never pair an old failure
+  // with new source while its render is queued, or repair a streaming prefix.
+  if (error && (errorChart === chart || !plugin) && !isBlockIncomplete) {
     const retry = () => setRetryCount((count) => count + 1);
 
     if (ErrorComponent) {
