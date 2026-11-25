@@ -1,3 +1,86 @@
+# Upstream sync — 2026-11-25
+
+Synchronized the fork from `262da5d` with
+[`vercel/streamdown@4e86b04`](https://github.com/vercel/streamdown/commit/4e86b04)
+(59 upstream commits since `c5e44d8`, covering upstream releases `2.8.0` and
+`2.8.1`). Upstream `main` and the selected heads of #749, #760, #758, #786,
+and #633 are retained in merge history. Fork package names and versions,
+publishing policy, Geistdocs 1.x website, KaTeX `^0.18.2`, diagram adapters
+and plugins, custom-component ID preservation, smoothing, effects, lazy
+animation, and incremental block parsing remain.
+
+## New and recently updated PRs
+
+Reviewed all 22 open upstream PRs with the GitHub CLI. Candidate heads were
+fetched and inspected for diffs, review comments, and CI outcomes before
+merging.
+
+| Upstream PR | Decision | Reason and adaptation |
+| --- | --- | --- |
+| [#749 — blockquote setext guard](https://github.com/vercel/streamdown/pull/749) | Integrated (`184be0d`) | Prevents a streaming list dash inside a blockquote from turning the quoted line into a setext heading and skips open fenced code blocks. Reconciled with the fork's `EMPTY_DASH_LIST_PATTERN` and `isWithinMathBlock`. Upstream CI failure was solely the pre-#774 `stream-repair` timeout. |
+| [#760 — inline line-start custom tags](https://github.com/vercel/streamdown/pull/760) | Integrated with adaptation (`e22f66d`) | Keeps line-start multi-line custom tags inline when continuing a paragraph, inside blockquotes, or when text follows the opening tag in a list item. Updated `rehypeMarkdownInCustomTags` to skip elements with a `<p>` ancestor so inline custom tags do not nest `<p>` inside `<p>`. |
+| [#758 — prop changes on unchanged Markdown](https://github.com/vercel/streamdown/pull/758) | Integrated with adaptation (`973860a`) | Adds structural `sameValue` comparison for config and plugin props and checks `caret`, `portal`, `BlockComponent`, `parseMarkdownIntoBlocksFn`, and `parseIncompleteMarkdown` in `Streamdown`'s `memo` comparator. Extended for fork props (`listStyle`, `scrollable`, `openscad`, `plantuml`, `smiles`, `vega`, `diagrams`) and updated `parseMarkdownIntoBlocksIncremental` to invalidate when `parseFn` changes. |
+| [#786 — table link addresses on copy/download](https://github.com/vercel/streamdown/pull/786) | Integrated (`1550965`) | Serializes `<a href>` and `[data-streamdown="link"][data-href]` as `[text](href)` during table copy and download, escapes literal `!` before links, and preserves autolinks as text. |
+| [#633 — hold pending streaming markers](https://github.com/vercel/streamdown/pull/633) | Updated (`e877ab2`) | Adopts `isInUnfinishedDestination` in `pending-inline-markers.ts` and the new fence/destination/list-spacing regression tests without duplicating the existing changeset. |
+| [#725 — Mermaid error with fallback SVG](https://github.com/vercel/streamdown/pull/725) | Already covered | Fork commit `bfe16cb` already surfaces render errors across all diagram engines (Mermaid, TikZ, PlantUML, Vega, SMILES, OpenSCAD) without adding a breaking required `hasFallback` prop to `MermaidErrorComponentProps`. |
+| [#717 — GFM admonitions](https://github.com/vercel/streamdown/pull/717) | Not applied | Introduces a new workspace package (`remark-gfm-admonition`), new icons/translations, and failed upstream security review. The fork already includes built-in `remarkGithubAlerts` and `remarkContainerAlerts`. |
+| [#780 — minor dependency bumps and Dependabot overrides](https://github.com/vercel/streamdown/pull/780) | Not applied | Conflicts with upstream `main` and downgrades KaTeX from `^0.18.2` to `^0.16.47`. |
+| [#781](https://github.com/vercel/streamdown/pull/781), [#783](https://github.com/vercel/streamdown/pull/783) — KaTeX `0.18.2` | Already covered | The fork already targets `katex@^0.18.2`. |
+| [#701 — parser-owned literal ranges in remend](https://github.com/vercel/streamdown/pull/701) | Deferred | Draft PR with unresolved review findings. |
+| [#619](https://github.com/vercel/streamdown/pull/619), [#663](https://github.com/vercel/streamdown/pull/663), and earlier open PRs | Already covered / unchanged | No new code changes since previous syncs. |
+
+## New upstream main changes
+
+- Integrates `exactOptionalPropertyTypes` public and plugin type support (#704,
+  #707) and updates `.github/workflows/test.yml` filter targets to `@lofcz/*`.
+  Uses bivariant method syntax for `MermaidInstance.initialize` and
+  `DiagramPlugin.getMermaid` so `@lofcz/streamdown-mermaid` remains assignable
+  under `strictFunctionTypes`.
+- Generalizes diagram improvements from #722 (`cause` prop on
+  `DiagramErrorComponentProps`), #735 (fullscreen copy button and callbacks),
+  #738 (Escape from focused controls), #743 (`useDialogFocus`), #761 (wheel
+  scroll when zoom controls are hidden), and #772 (function replacements in
+  `normalizeMermaidInlineSvg`) across both `lib/mermaid/` and the fork's shared
+  `lib/diagram/` renderer.
+- Integrates #768 and #777 (`collectRawHtmlIds` + O(1) closure-based selective
+  `#fragment` rewriting) while preserving mapped custom component `id` props.
+- Integrates remend linear-time hardening and edge-case fixes (#715, #737,
+  #744, #745, #746, #747, #765, #771, #779). Tightened `EMPTY_DASH_LIST_PATTERN`
+  and added CJK sentence punctuation to `AUTOLINK_END_PATTERN` so #779's bare
+  URL mask does not swallow closing `**` before CJK punctuation.
+- Combines #716 (`www.` CJK autolink splitting) with the fork's bold-autolink
+  restoration in `@lofcz/streamdown-cjk`.
+- Integrates table export hardening (#726, #756, #773, #775, #776), processor
+  cache isolation (#702, #723, #751), custom-component refresh (#750), RTL
+  letter-only direction detection (#721), Mermaid native theme/font defaults
+  (#730), case-insensitive code download extensions (#712), link safety modal
+  single-Escape handling (#727), and inline/self-closing custom tags (#708).
+- Updates both Next.js apps to pinned `16.4.6` (#752) and adds
+  `decode-named-character-reference@^1.2.0` to `@lofcz/streamdown`, while
+  retaining Geistdocs `1.23.1`, KaTeX `^0.18.2`, TypeScript `^7.0.2`, Vitest
+  `^4.1.10`, and `@lofcz/remark-gfm@^4.0.1`.
+
+## Validation
+
+- `pnpm exec turbo run build --ui=stream --filter=website --filter=test --concurrency=1`:
+  all 14 tasks pass (all 12 workspace packages plus `apps/website` and
+  `apps/test` on Next.js 16.4.6).
+- `pnpm --filter @lofcz/streamdown --filter @lofcz/streamdown-code --filter @lofcz/streamdown-math --filter @lofcz/streamdown-mermaid exec tsc -p tsconfig.exact-optional.json`:
+  all 4 `exactOptionalPropertyTypes` type-checks pass.
+- `pnpm exec turbo run test --ui=stream --concurrency=1 -- --maxWorkers=2 --testTimeout=60000`:
+  all 12 package suites pass — 195 passed test files and 2,979 passed tests
+  (with 1 existing corpus-dependent benchmark skipped in `@lofcz/remend`).
+- `pnpm check`: all 517 checked files pass.
+- Changeset verification: all 9 tests in
+  `.github/workflows/actions/verify-changesets/test.js` pass, and all 5
+  incoming fork changesets pass `verify-changesets/index.js` under the patch
+  policy; published package versions remain unchanged.
+- `git diff --check` passes. Upstream `4e86b04` and selected PR heads
+  `184be0d` (#749), `e22f66d` (#760), `973860a` (#758), `1550965` (#786), and
+  `e877ab2` (#633) are ancestors of `HEAD`.
+
+---
+
 # Upstream sync — 2026-10-22
 
 Synchronized the fork from `3c1e65f` with

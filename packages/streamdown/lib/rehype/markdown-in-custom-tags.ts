@@ -73,7 +73,8 @@ export const rehypeMarkdownInCustomTags: Plugin<[string[], string[]?], Root> =
       if (
         ancestors.some(
           (ancestor) =>
-            ancestor.type === "element" && ancestor.tagName.toLowerCase() === "p"
+            ancestor.type === "element" &&
+            ancestor.tagName.toLowerCase() === "p"
         )
       ) {
         return;

@@ -154,10 +154,11 @@ export interface IncrementalParseState {
   blocks: string[];
   /** Independent definition checks for this message's append-only stream. */
   definitions?: DefinitionScanner;
+  /** Parser function that produced `blocks`. */
+  parseFn?: (value: string) => string[];
   /** Tag-preprocessed markdown that produced `blocks` (before last-block remend). */
   source: string;
   /** How many leading blocks have been checked to sit at their expected offsets. */
-  parseFn?: (value: string) => string[];
   verifiedCount?: number;
   verifiedLength?: number;
 }

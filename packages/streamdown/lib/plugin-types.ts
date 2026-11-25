@@ -112,18 +112,22 @@ export type MermaidConfig = {
  * assignable without a core type dependency on the mermaid package.
  */
 export interface MermaidInstance {
-  initialize: (config: MermaidConfig) => void;
-  render: (id: string, source: string) => Promise<{ svg: string }>;
+  initialize(config: MermaidConfig): void;
+  render(id: string, source: string): Promise<{ svg: string }>;
 }
 
 /**
- * Plugin for diagram rendering (Mermaid)
+ * Plugin for diagram rendering (Mermaid).
+ *
+ * Method syntax on `getMermaid` matches `CodeHighlighterPlugin` — keeps plugin
+ * implementations with narrower config types assignable under
+ * `strictFunctionTypes`.
  */
 export interface DiagramPlugin {
   /**
    * Get the mermaid instance (initialized with optional config)
    */
-  getMermaid: (config?: MermaidConfig) => MermaidInstance;
+  getMermaid(config?: MermaidConfig): MermaidInstance;
   /**
    * Language identifier for code blocks
    */
