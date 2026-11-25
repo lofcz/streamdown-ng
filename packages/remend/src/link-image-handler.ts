@@ -1,11 +1,8 @@
 import { isInsideCodeBlock } from "./code-block-utils";
 import { findInlineBlockStart } from "./inline-block";
 import { handleIncompleteInlineCode } from "./inline-code-handler";
-import { getScan, isCompleteSpanAt, isFenceAt } from "./scan";
-import {
-  findMatchingClosingBracket,
-  findMatchingOpeningBracket,
-} from "./utils";
+import { getScan, isCompleteSpanAt, isFenceAt, type TextScan } from "./scan";
+import { findMatchingOpeningBracket } from "./utils";
 
 export type LinkMode = "protocol" | "text-only";
 
@@ -58,12 +55,46 @@ const handleIncompleteUrl = (
   return `${beforeLink}[${altOrLinkText}](streamdown:incomplete-link)`;
 };
 
+// Bracket structure of one text, computed in a single pass so the per-bracket
+// probes below are O(1). Re-running findMatchingClosingBracket for every "["
+// would make nested brackets quadratic.
+interface BracketIndex {
+  // Matching "]" for each "[" outside complete code spans, or -1. Same rules
+  // as findMatchingClosingBracket: brackets inside complete spans don't count.
+  // Callers only look up brackets outside code, which are always indexed.
+  closeOf: Int32Array;
+  // Last "]" and ")" anywhere in the raw text, or -1
+  lastClose: number;
+  lastParen: number;
+}
+
+const indexBrackets = (text: string, scan: TextScan): BracketIndex => {
+  const closeOf = new Int32Array(text.length).fill(-1);
+  const open: number[] = [];
+  for (let i = 0; i < text.length; i += 1) {
+    if (isCompleteSpanAt(scan, i)) {
+      continue;
+    }
+    if (text[i] === "[") {
+      open.push(i);
+    } else if (text[i] === "]" && open.length > 0) {
+      closeOf[open.pop() as number] = i;
+    }
+  }
+  return {
+    closeOf,
+    lastClose: text.lastIndexOf("]"),
+    lastParen: text.lastIndexOf(")"),
+  };
+};
+
 // Helper to find the first incomplete [ (for text-only mode)
 // Always returns a valid index since callers guarantee text[maxPos] is an incomplete [
 const findFirstIncompleteBracket = (
   text: string,
   maxPos: number,
-  blockStart: number
+  blockStart: number,
+  brackets: BracketIndex
 ): number => {
   for (let j = blockStart; j < maxPos; j++) {
     if (text[j] === "[" && !isInsideCodeBlock(text, j)) {
@@ -72,18 +103,21 @@ const findFirstIncompleteBracket = (
         continue;
       }
       // Check if this [ has a matching ]
-      const closingIdx = findMatchingClosingBracket(text, j);
+      const closingIdx = brackets.closeOf[j];
       if (closingIdx === -1) {
         // This is an incomplete [
         return j;
       }
       // This [ is complete, check if it's a full link [text](url)
-      if (closingIdx + 1 < text.length && text[closingIdx + 1] === "(") {
-        const urlEnd = text.indexOf(")", closingIdx + 2);
-        if (urlEnd !== -1) {
-          // Skip past this complete link
-          j = urlEnd;
-        }
+      // Only search for ")" when one exists, so each search ends at a ")"
+      // that j then skips past, keeping the loop linear
+      if (
+        closingIdx + 1 < text.length &&
+        text[closingIdx + 1] === "(" &&
+        brackets.lastParen >= closingIdx + 2
+      ) {
+        // Skip past this complete link
+        j = text.indexOf(")", closingIdx + 2);
       }
     }
   }
@@ -96,15 +130,15 @@ const handleIncompleteText = (
   text: string,
   i: number,
   linkMode: LinkMode,
-  blockStart: number
+  blockStart: number,
+  brackets: BracketIndex
 ): string | null => {
   // Check if there's a ! before it
   const isImage = i > 0 && text[i - 1] === "!";
   const openIndex = isImage ? i - 1 : i;
 
   // Check if we have a closing bracket after this
-  const afterOpen = text.substring(i + 1);
-  if (!afterOpen.includes("]")) {
+  if (brackets.lastClose <= i) {
     // This is an incomplete link/image
     const beforeLink = text.substring(0, openIndex);
 
@@ -117,7 +151,12 @@ const handleIncompleteText = (
     // For links, handle based on linkMode
     if (linkMode === "text-only") {
       // Find the first incomplete [ and strip just that bracket
-      const firstIncomplete = findFirstIncompleteBracket(text, i, blockStart);
+      const firstIncomplete = findFirstIncompleteBracket(
+        text,
+        i,
+        blockStart,
+        brackets
+      );
       return (
         text.substring(0, firstIncomplete) + text.substring(firstIncomplete + 1)
       );
@@ -128,7 +167,7 @@ const handleIncompleteText = (
 
   // If we found a closing bracket, we need to check if it's the matching one
   // (accounting for nested brackets)
-  const closingIndex = findMatchingClosingBracket(text, i);
+  const closingIndex = brackets.closeOf[i];
   if (closingIndex === -1) {
     // No matching closing bracket
     const beforeLink = text.substring(0, openIndex);
@@ -141,7 +180,12 @@ const handleIncompleteText = (
 
     if (linkMode === "text-only") {
       // Find the first incomplete [ and strip just that bracket
-      const firstIncomplete = findFirstIncompleteBracket(text, i, blockStart);
+      const firstIncomplete = findFirstIncompleteBracket(
+        text,
+        i,
+        blockStart,
+        brackets
+      );
       return (
         text.substring(0, firstIncomplete) + text.substring(firstIncomplete + 1)
       );
@@ -152,12 +196,14 @@ const handleIncompleteText = (
   return null;
 };
 
-const opensCompleteLink = (text: string, open: number): boolean => {
-  const close = findMatchingClosingBracket(text, open);
+const opensCompleteLink = (
+  text: string,
+  open: number,
+  brackets: BracketIndex
+): boolean => {
+  const close = brackets.closeOf[open];
   return (
-    close !== -1 &&
-    text[close + 1] === "(" &&
-    text.indexOf(")", close + 2) !== -1
+    close !== -1 && text[close + 1] === "(" && brackets.lastParen >= close + 2
   );
 };
 
@@ -191,6 +237,7 @@ const healTrailingLinkOrImage = (text: string, linkMode: LinkMode): string => {
 
   // Then check for incomplete link text: [partial-text without closing ]
   // Search backwards for an opening bracket that doesn't have a matching closing bracket
+  const brackets = indexBrackets(text, scan);
   let enclosesLink = false;
   for (
     let i = text.lastIndexOf("[");
@@ -203,12 +250,22 @@ const healTrailingLinkOrImage = (text: string, linkMode: LinkMode): string => {
       isFenceAt(scan, i) ||
       isCompleteSpanAt(scan, i)
     );
-    const closesHere = isLink && opensCompleteLink(text, i);
-    // Links can't contain links, so a link bracket before one is literal text
-    const literal = isLink && enclosesLink;
+    // Links can't contain links, so a link bracket before one is literal text.
+    // Skip its completed-link probe too: unmatched prefixes would otherwise
+    // each rescan the remaining suffix, making this loop quadratic.
+    if (isLink && enclosesLink) {
+      continue;
+    }
+    const closesHere = isLink && opensCompleteLink(text, i, brackets);
     enclosesLink ||= closesHere;
-    if (!(closesHere || literal || isInsideCodeBlock(text, i))) {
-      const result = handleIncompleteText(text, i, linkMode, blockStart);
+    if (!(closesHere || isInsideCodeBlock(text, i))) {
+      const result = handleIncompleteText(
+        text,
+        i,
+        linkMode,
+        blockStart,
+        brackets
+      );
       if (result !== null) {
         return result;
       }
@@ -228,13 +285,14 @@ const healLinksAndImages = (text: string, linkMode: LinkMode): string => {
 
   // Removing a trailing incomplete image can expose another incomplete
   // construct that ended immediately before it (an input ending in "![!["
-  // heals to "![", which is itself incomplete). Iterate until healed text
-  // re-heals to itself, so healing is idempotent. A step that grows the text
-  // has completed the construct, and truncating steps strictly shorten,
-  // so the loop terminates.
+  // heals to "![", which is itself incomplete). Completing one can leave the
+  // link around it open too: "[![alt" heals to "[![alt](…)", whose "[" still
+  // needs closing. Iterate until healed text re-heals to itself, so healing
+  // is idempotent. Each step heals the innermost open construct, and the
+  // pass bound keeps the loop finite.
   for (let pass = 0; pass < MAX_HEAL_PASSES; pass += 1) {
     const next = healTrailingLinkOrImage(current, linkMode);
-    if (next.length >= current.length) {
+    if (next === current) {
       return next;
     }
     current = next;

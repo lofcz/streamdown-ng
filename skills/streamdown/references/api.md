@@ -46,7 +46,6 @@ interface StreamdownProps {
   mermaid?: MermaidOptions;
   linkSafety?: LinkSafetyConfig; // default: { enabled: true }
   portal?: HTMLElement | null | (() => HTMLElement | null); // default: document.body
-  cdnUrl?: string | null; // default: 'https://streamdown.ai/cdn'
 
   // Advanced
   BlockComponent?: React.ComponentType<BlockProps>;
@@ -202,6 +201,7 @@ interface MermaidErrorComponentProps {
   error: string;
   chart: string;
   retry: () => void;
+  cause?: unknown; // original thrown value from Mermaid
 }
 ```
 

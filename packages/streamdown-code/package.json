@@ -20,6 +20,7 @@
   "scripts": {
     "bench": "vitest bench --run",
     "build": "node scripts/build.mjs",
+    "check-types:exact-optional": "pnpm build && tsc -p tsconfig.exact-optional.json",
     "test": "vitest run",
     "test:coverage": "vitest --coverage run"
   },
@@ -27,7 +28,7 @@
     "react": "^18.0.0 || ^19.0.0"
   },
   "dependencies": {
-    "shiki": "^4.4.3"
+    "shiki": "^4.6.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",

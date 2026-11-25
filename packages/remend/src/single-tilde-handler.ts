@@ -5,76 +5,69 @@
 // Does NOT escape ~~ (double tilde, valid strikethrough syntax).
 
 import { isInsideCodeBlock } from "./code-block-utils";
-import { compileLookbehindRegex, supportsLookbehind } from "./lookbehind";
 
 // Match a single ~ that is:
 // - preceded by a word character (letter, number, or underscore)
 // - NOT preceded by another ~ (to avoid matching ~~)
 // - NOT followed by another ~ (to avoid matching ~~)
 // - followed by a word character
-// Uses Unicode-aware \p{L} and \p{N} for CJK and other scripts.
-// Patterns are strings compiled with `new RegExp` (see lookbehind.ts) so
-// Safari < 16.3 can evaluate this module. The lookbehind source is never
-// passed to `RegExp` on engines that lack lookbehind.
-const WORD = "[\\p{L}\\p{N}_]";
-const SINGLE_TILDE_LOOKBEHIND = `(?<=${WORD})~(?!~)(?=${WORD})`;
-const SINGLE_TILDE_CAPTURE = `(${WORD})~(?!~)(?=${WORD})`;
-const SINGLE_TILDE_FLAGS = "gu";
+// Uses Unicode-aware \p{L} and \p{N} for CJK and other scripts
+// Captures the preceding char instead of using a lookbehind: Safari < 16.3
+// throws on lookbehind, which would crash at module evaluation (#519).
+const SINGLE_TILDE = String.raw`([\p{L}\p{N}_])~(?!~)(?=[\p{L}\p{N}_])`;
 
-const createLookbehindHandler =
-  (pattern: RegExp) =>
-  (text: string): string => {
-    if (!(text && typeof text === "string" && text.includes("~"))) {
-      return text;
-    }
+// A backslash is not an escape inside an HTML tag or a URL, so it would end
+// up in the attribute value or the link. These are matched before the tilde
+// and kept as they are:
+// - an HTML tag with attributes
+// - a URL GFM autolinks while parsing, which keeps the source as is:
+//   http(s):// after anything but a letter, and www. at the start or after a
+//   space, tab, line break or one of ( * _ [ ] ~. It runs to the next
+//   whitespace, quote, angle bracket, backtick or unmatched ), so a URL
+//   inside an attribute, an <autolink> or a [link](url) stops where they do.
+//   Parentheses that open and close inside the URL are kept, like in
+//   https://en.wikipedia.org/wiki/Mercury_(planet).
+// As above, the character before a URL is matched instead of looked behind.
+const HTML_TAG = String.raw`<[a-z][\w-]*\s[^<>\n]*>`;
+const URL_CHAR = String.raw`[^\s"'<>\x60()\[\]]`;
+const URL_REST = String.raw`(?:${URL_CHAR}|\(${URL_CHAR}*\))*`;
+const PROTOCOL_URL = String.raw`(?:^|[^a-z])https?:\/\/${URL_REST}`;
+const WWW_URL = String.raw`(?:^|[\t\n\r (*_\[\]~])www\.${URL_REST}`;
 
-    return text.replace(pattern, (match, offset: number) => {
-      if (isInsideCodeBlock(text, offset)) {
+const SINGLE_TILDE_PATTERN = new RegExp(
+  `(${HTML_TAG}|${PROTOCOL_URL}|${WWW_URL})|${SINGLE_TILDE}`,
+  "giu"
+);
+
+export const handleSingleTildeEscape = (text: string): string => {
+  if (!text || typeof text !== "string") {
+    return text;
+  }
+
+  // Quick check: if there's no ~ in the text, skip processing
+  if (!text.includes("~")) {
+    return text;
+  }
+
+  return text.replace(
+    SINGLE_TILDE_PATTERN,
+    (match, tagOrUrl, precedingChar, offset) => {
+      if (tagOrUrl) {
         return match;
       }
 
-      return "\\~";
-    });
-  };
+      const tildeOffset = offset + precedingChar.length;
 
-const createCaptureHandler =
-  (pattern: RegExp) =>
-  (text: string): string => {
-    if (!(text && typeof text === "string" && text.includes("~"))) {
-      return text;
-    }
-
-    return text.replace(
-      pattern,
-      (match, precedingChar: string, offset: number) => {
-        const tildeOffset = offset + precedingChar.length;
-
-        if (isInsideCodeBlock(text, tildeOffset)) {
-          return match;
-        }
-
-        return `${precedingChar}\\~`;
+      // Don't escape inside code blocks
+      if (isInsideCodeBlock(text, tildeOffset)) {
+        return match;
       }
-    );
-  };
 
-/** Safari < 16.3 path — consume the preceding word char and write it back. */
-export const handleSingleTildeEscapeCapture = createCaptureHandler(
-  new RegExp(SINGLE_TILDE_CAPTURE, SINGLE_TILDE_FLAGS)
-);
+      return `${precedingChar}\\~`;
+    }
+  );
+};
 
-/** Native lookbehind path — match offset already points at `~`. */
-export const handleSingleTildeEscapeLookbehind = supportsLookbehind
-  ? createLookbehindHandler(
-      compileLookbehindRegex(
-        SINGLE_TILDE_LOOKBEHIND,
-        SINGLE_TILDE_CAPTURE,
-        SINGLE_TILDE_FLAGS
-      )
-    )
-  : handleSingleTildeEscapeCapture;
-
-// Bind once at module init so the hot path has no per-match engine check.
-export const handleSingleTildeEscape = supportsLookbehind
-  ? handleSingleTildeEscapeLookbehind
-  : handleSingleTildeEscapeCapture;
+// Backwards-compatible aliases kept for lookbehind regression tests.
+export const handleSingleTildeEscapeCapture = handleSingleTildeEscape;
+export const handleSingleTildeEscapeLookbehind = handleSingleTildeEscape;

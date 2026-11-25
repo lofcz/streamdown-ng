@@ -274,6 +274,6 @@ describe("parseMarkdownIntoBlocks incremental parsing", () => {
     for (let i = 1; i <= doc.length; i += 1) {
       state = parseMarkdownIntoBlocksIncremental(doc.slice(0, i), state);
     }
-    expect(state?.blocks).toEqual(["para\nfoo\n***\nbar\n="]);
+    expect(state?.blocks).toEqual(parseMarkdownIntoBlocks(doc));
   });
 });

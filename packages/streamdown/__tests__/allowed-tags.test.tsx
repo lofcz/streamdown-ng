@@ -193,8 +193,6 @@ Content for snippet 2
       </Streamdown>
     );
 
-    // Sanitizer's clobberPrefix is disabled to keep footnote backref hrefs in
-    // sync with their targets, so user-provided ids are preserved as-is.
     const snippet1 = container.querySelector('[data-testid="snippet-1"]');
     const snippet2 = container.querySelector('[data-testid="snippet-2"]');
     expect(snippet1).toBeTruthy();

@@ -57,7 +57,10 @@ import { rehypeBlockDirection } from "./lib/rehype/block-direction";
 import { rehypeDataOnlyTags } from "./lib/rehype/data-only-tags";
 import { rehypeLiteralTagContent } from "./lib/rehype/literal-tag-content";
 import { rehypeMarkdownInCustomTags } from "./lib/rehype/markdown-in-custom-tags";
-import { rehypeProtectIdentifiers } from "./lib/rehype/protect-identifiers";
+import {
+  collectRawHtmlIds,
+  rehypeProtectIdentifiers,
+} from "./lib/rehype/protect-identifiers";
 import { remarkCodeMeta } from "./lib/remark/code-meta";
 import {
   extractCallouts,
@@ -281,7 +284,7 @@ export const normalizeHtmlIndentation = (content: string): string => {
 export type AllowedTags = Record<string, string[]>;
 
 export type StreamdownProps = Options & {
-  mode?: "static" | "streaming";
+  mode?: "static" | "streaming" | undefined;
   /**
    * Text direction. `"ltr"` / `"rtl"` force a single direction.
    * `"auto"` detects direction per block: in streaming mode via parsed
@@ -291,28 +294,36 @@ export type StreamdownProps = Options & {
    * first-strong as the tie-breaker; fenced/inline code is excluded from
    * the evidence and code blocks are always rendered LTR.
    */
-  dir?: "auto" | "ltr" | "rtl";
-  BlockComponent?: React.ComponentType<BlockProps>;
-  parseMarkdownIntoBlocksFn?: (markdown: string) => string[];
-  parseIncompleteMarkdown?: boolean;
+  dir?: "auto" | "ltr" | "rtl" | undefined;
+  BlockComponent?: React.ComponentType<BlockProps> | undefined;
+  parseMarkdownIntoBlocksFn?: ((markdown: string) => string[]) | undefined;
+  parseIncompleteMarkdown?: boolean | undefined;
   /** Normalize HTML block indentation to prevent 4+ spaces being treated as code blocks. @default false */
-  normalizeHtmlIndentation?: boolean;
-  className?: string;
-  shikiTheme?: [ThemeInput, ThemeInput];
-  mermaid?: MermaidOptions;
-  openscad?: OpenScadOptions;
-  plantuml?: PlantUmlOptions;
-  smiles?: SmilesOptions;
-  vega?: VegaOptions;
+  normalizeHtmlIndentation?: boolean | undefined;
+  className?: string | undefined;
+  shikiTheme?: [ThemeInput, ThemeInput] | undefined;
+  mermaid?: MermaidOptions | undefined;
+  openscad?: OpenScadOptions | undefined;
+  plantuml?: PlantUmlOptions | undefined;
+  smiles?: SmilesOptions | undefined;
+  vega?: VegaOptions | undefined;
   /** Per-engine options for extra SVG diagrams registered via `plugins.diagrams`. */
-  diagrams?: Record<string, DiagramOptions>;
-  codeBlockMaxHeight?: number | string;
-  controls?: ControlsConfig;
-  isAnimating?: boolean;
+  diagrams?: Record<string, DiagramOptions> | undefined;
+  /**
+   * Max height for fenced code blocks. Numbers are treated as px.
+   * Set to `0` or `Infinity` to disable. @default 400
+   */
+  codeBlockMaxHeight?: number | string | undefined;
+  controls?: ControlsConfig | undefined;
+  isAnimating?: boolean | undefined;
   /** Component used for horizontal-scroll regions (code body, table). Defaults to a plain div — override to plug in a custom scrollbar (e.g. OverlayScrollbars) declaratively. */
-  scrollable?: ScrollableComponent;
-  tableMaxHeight?: number | string;
-  animated?: boolean | AnimateOptions;
+  scrollable?: ScrollableComponent | undefined;
+  /**
+   * Max height for tables. Numbers are treated as px.
+   * Set to `0` or `Infinity` to disable. @default 300
+   */
+  tableMaxHeight?: number | string | undefined;
+  animated?: boolean | AnimateOptions | undefined;
   /**
    * Pace bursty streams. Text that arrives in large chunks is revealed a word
    * at a time at the rate it has been arriving, instead of all at once.
@@ -322,24 +333,24 @@ export type StreamdownProps = Options & {
    * handling) even if `mode` is `"static"`, and `onAnimationEnd` waits for
    * it. @default false
    */
-  smooth?: boolean;
-  caret?: keyof typeof carets;
+  smooth?: boolean | undefined;
+  caret?: keyof typeof carets | undefined;
   /** Bullet style cycling for nested unordered lists. @default "hierarchical" */
-  listStyle?: ListStylePreset;
+  listStyle?: ListStylePreset | undefined;
   /** Icon resolver for custom callouts (`>>> (icon)[Title]{color}`). Return null/undefined for a blank placeholder. */
-  calloutIcon?: CalloutIconResolver;
+  calloutIcon?: CalloutIconResolver | undefined;
   /** Style resolver for custom callouts — computes the tinted background + accent border/title color. */
-  calloutStyle?: CalloutStyleResolver;
-  plugins?: PluginConfig;
-  remend?: RemendOptions;
-  linkSafety?: LinkSafetyConfig;
+  calloutStyle?: CalloutStyleResolver | undefined;
+  plugins?: PluginConfig | undefined;
+  remend?: RemendOptions | undefined;
+  linkSafety?: LinkSafetyConfig | undefined;
   /**
    * DOM node for Streamdown overlays, or a function returning one.
    * Defaults to `document.body`.
    */
-  portal?: PortalTarget;
+  portal?: PortalTarget | undefined;
   /** Custom tags to allow through sanitization with their permitted attributes */
-  allowedTags?: AllowedTags;
+  allowedTags?: AllowedTags | undefined;
   /**
    * Fallback component for HTML tags or `allowedTags` entries that have no
    * matching key in the `components` map. Built-in and explicit `components`
@@ -364,7 +375,9 @@ export type StreamdownProps = Options & {
    * </Streamdown>
    * ```
    */
-  fallbackComponent?: React.ComponentType<Record<string, unknown> & ExtraProps>;
+  fallbackComponent?:
+    | React.ComponentType<Record<string, unknown> & ExtraProps>
+    | undefined;
   /**
    * Tags whose children should be treated as plain text (no markdown parsing).
    * Useful for mention/entity tags in AI UIs where child content is a data
@@ -380,7 +393,7 @@ export type StreamdownProps = Options & {
    * </Streamdown>
    * ```
    */
-  literalTagContent?: string[];
+  literalTagContent?: string[] | undefined;
   /**
    * Tags whose parsed children are lifted into a JSON `data-content`
    * attribute and removed from the tree — the element renders with NO visible
@@ -419,21 +432,27 @@ export type StreamdownProps = Options & {
    * </Streamdown>
    * ```
    */
-  disableAutolinkProtocols?: string[];
+  disableAutolinkProtocols?: string[] | undefined;
   /** Override UI strings for i18n / custom labels */
-  translations?: Partial<StreamdownTranslations>;
+  translations?: Partial<StreamdownTranslations> | undefined;
   /** Custom icons to override the default icons used in controls */
-  icons?: Partial<IconMap>;
+  icons?: Partial<IconMap> | undefined;
   /** Tailwind CSS prefix to prepend to all utility classes (e.g. `"tw"` produces `tw:flex` instead of `flex`). Enables Tailwind v4's `prefix()` support. Note: user-supplied `className` values are also prefixed. */
-  prefix?: string;
+  prefix?: string | undefined;
   /** Show line numbers in code blocks. @default true */
-  lineNumbers?: boolean;
-  /** Fence languages rendered verbatim, without highlighting or controls. Custom renderers and diagram plugins take precedence. */
-  codeBlockRawLanguages?: string[];
+  lineNumbers?: boolean | undefined;
+  /**
+   * Code fence languages rendered verbatim as plain monospace text, without
+   * syntax highlighting, line numbers or controls. Useful for ASCII / Unicode
+   * box-drawing diagrams where column alignment matters.
+   * Custom renderers and diagram plugins take precedence for matching languages.
+   * @default []
+   */
+  codeBlockRawLanguages?: string[] | undefined;
   /** Called when isAnimating transitions from false to true. Suppressed in mode="static". */
-  onAnimationStart?: () => void;
+  onAnimationStart?: (() => void) | undefined;
   /** Called when isAnimating transitions from true to false. Suppressed in mode="static". */
-  onAnimationEnd?: () => void;
+  onAnimationEnd?: (() => void) | undefined;
   /** `data-*` attributes, like `aria-*` attributes, are set on the root element. */
   [dataAttribute: `data-${string}`]:
     | string
@@ -630,9 +649,25 @@ export type BlockProps = Options & {
   /** Whether this block is incomplete (still being streamed) */
   isIncomplete: boolean;
   /** Resolved text direction for this block */
-  dir?: "ltr" | "rtl";
+  dir?: "ltr" | "rtl" | undefined;
   /** Animate plugin instance for tracking previous content length */
-  animatePlugin?: AnimatePlugin | null;
+  animatePlugin?: AnimatePlugin | null | undefined;
+};
+
+const sameComponents = (
+  prev: Options["components"],
+  next: Options["components"]
+): boolean => {
+  if (prev === next) {
+    return true;
+  }
+  const prevKeys = Object.keys(prev ?? {});
+  return (
+    prevKeys.length === Object.keys(next ?? {}).length &&
+    prevKeys.every(
+      (key) => Object.hasOwn(next ?? {}, key) && prev?.[key] === next?.[key]
+    )
+  );
 };
 
 export const Block = memo(
@@ -703,22 +738,8 @@ export const Block = memo(
       return false;
     }
 
-    // Check if components object changed (shallow comparison)
-    if (prevProps.components !== nextProps.components) {
-      // If references differ, check if keys are the same
-      const prevKeys = Object.keys(prevProps.components || {});
-      const nextKeys = Object.keys(nextProps.components || {});
-
-      if (prevKeys.length !== nextKeys.length) {
-        return false;
-      }
-      if (
-        prevKeys.some(
-          (key) => prevProps.components?.[key] !== nextProps.components?.[key]
-        )
-      ) {
-        return false;
-      }
+    if (!sameComponents(prevProps.components, nextProps.components)) {
+      return false;
     }
 
     // Check if rehypePlugins changed (reference comparison)
@@ -1222,6 +1243,34 @@ export const Streamdown = memo(
       return result;
     }, [remarkPlugins, plugins?.math, plugins?.cjk, disableAutolinkProtocols]);
 
+    // Raw HTML ids are clobbered per block; share them document-wide so links
+    // in one streaming block still reach targets declared in another.
+    const rawHtmlIdsKey = useMemo(
+      () => JSON.stringify([...collectRawHtmlIds(processedChildren)]),
+      [processedChildren]
+    );
+    const componentTagsKey = useMemo(
+      () =>
+        JSON.stringify(
+          allowedTagNames.filter(
+            (tag) =>
+              !defaultSchema.tagNames?.includes(tag) &&
+              mergedComponents[tag] &&
+              typeof mergedComponents[tag] !== "string"
+          )
+        ),
+      [allowedTagNames, mergedComponents]
+    );
+    const protectIdentifiersPlugin = useMemo<Pluggable>(() => {
+      const documentIds: ReadonlySet<string> = new Set<string>(
+        JSON.parse(rawHtmlIdsKey)
+      );
+      const componentTags: string[] = JSON.parse(componentTagsKey);
+      // Capture the lookup in a stable plugin instead of plugin options:
+      // processor cache keys must not serialize every ID for every block.
+      return () => rehypeProtectIdentifiers({ componentTags, documentIds });
+    }, [rawHtmlIdsKey, componentTagsKey]);
+
     const mergedRehypePlugins = useMemo(() => {
       let result = rehypePlugins;
 
@@ -1269,13 +1318,7 @@ export const Streamdown = memo(
       }
 
       if (rehypePlugins === defaultRehypePluginsArray) {
-        const componentTags = allowedTagNames.filter(
-          (tag) =>
-            !defaultSchema.tagNames?.includes(tag) &&
-            mergedComponents[tag] &&
-            typeof mergedComponents[tag] !== "string"
-        );
-        result = [...result, [rehypeProtectIdentifiers, componentTags]];
+        result = [...result, protectIdentifiersPlugin];
       }
 
       return result;
@@ -1283,13 +1326,12 @@ export const Streamdown = memo(
       rehypePlugins,
       plugins?.math,
       allowedTags,
-      allowedTagNames,
-      mergedComponents,
       markdownContainerTagNames,
       literalTagContent,
       dataOnlyTags,
       dir,
       mode,
+      protectIdentifiersPlugin,
     ]);
 
     // Keep inline language arrays from invalidating every context consumer.
@@ -1486,6 +1528,7 @@ export const Streamdown = memo(
   },
   (prevProps, nextProps) =>
     prevProps.children === nextProps.children &&
+    sameComponents(prevProps.components, nextProps.components) &&
     prevProps.shikiTheme === nextProps.shikiTheme &&
     prevProps.isAnimating === nextProps.isAnimating &&
     prevProps.animated === nextProps.animated &&

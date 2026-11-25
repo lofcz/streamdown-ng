@@ -27,6 +27,7 @@ const sameRenderer = (
 
 export const useDiagramRender = () => {
   const [error, setError] = useState<string | null>(null);
+  const [errorCause, setErrorCause] = useState<unknown>(undefined);
   const [errorChart, setErrorChart] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [svgContent, setSvgContent] = useState("");
@@ -60,6 +61,7 @@ export const useDiagramRender = () => {
     }
     inFlight.current = true;
     setError(null);
+    setErrorCause(undefined);
     setIsLoading(true);
     const started = performance.now();
     try {
@@ -76,10 +78,12 @@ export const useDiagramRender = () => {
         );
         setSvgSize(getMermaidSvgSize(svg));
         setError(null);
+        setErrorCause(undefined);
       }
     } catch (err) {
       if (mounted.current && latest.current === request) {
         setError(err instanceof Error ? err.message : request.failedMessage);
+        setErrorCause(err);
         setErrorChart(request.chart);
       }
     }
@@ -125,8 +129,10 @@ export const useDiagramRender = () => {
 
   return {
     error,
+    errorCause,
     errorChart,
     setError,
+    setErrorCause,
     isLoading,
     svgContent,
     svgSize,

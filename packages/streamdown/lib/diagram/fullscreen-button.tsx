@@ -3,16 +3,20 @@ import {
   type ComponentType,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { StreamdownContext } from "../../index";
+import { CodeBlockCopyButton } from "../code-block/copy-button";
+import { getCopyCallbacks } from "../controls";
 import { useIcons } from "../icon-context";
 import type { SvgDiagramPlugin } from "../plugin-types";
 import { resolvePortalTarget } from "../portal";
 import { useCn } from "../prefix-context";
 import { lockBodyScroll, unlockBodyScroll } from "../scroll-lock";
 import { useTranslations } from "../translations-context";
+import { useDialogFocus } from "../use-dialog-focus";
 import { Diagram } from ".";
 import { shouldShowDiagramControl } from "./controls";
 import { DiagramDownloadDropdown } from "./download-button";
@@ -60,6 +64,11 @@ export const DiagramFullscreenButton = ({
     portal,
   } = useContext(StreamdownContext);
   const t = useTranslations();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { dialogRef, initialFocusRef } = useDialogFocus(
+    isFullscreen,
+    triggerRef
+  );
   const showPanZoomControls = shouldShowDiagramControl(
     controlsConfig,
     name,
@@ -70,6 +79,7 @@ export const DiagramFullscreenButton = ({
     name,
     "download"
   );
+  const showCopy = shouldShowDiagramControl(controlsConfig, name, "copy");
 
   const handleToggle = () => {
     setIsFullscreen(!isFullscreen);
@@ -110,6 +120,7 @@ export const DiagramFullscreenButton = ({
         )}
         disabled={isAnimating}
         onClick={handleToggle}
+        ref={triggerRef}
         title={t.viewFullscreen}
         type="button"
         {...props}
@@ -131,9 +142,12 @@ export const DiagramFullscreenButton = ({
               onClick={handleToggle}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
+                  // Handle it here only, so the document listener does not run too.
+                  e.stopPropagation();
                   handleToggle();
                 }
               }}
+              ref={dialogRef}
               role="dialog"
             >
               {/* biome-ignore lint/a11y/noStaticElementInteractions: "div with role=presentation is used for event propagation control" */}
@@ -142,7 +156,12 @@ export const DiagramFullscreenButton = ({
                   "absolute end-4 top-4 z-10 flex items-center gap-1"
                 )}
                 onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  // Let Escape reach the dialog so it closes from any focused control.
+                  if (e.key !== "Escape") {
+                    e.stopPropagation();
+                  }
+                }}
                 role="presentation"
               >
                 {showDownload ? (
@@ -155,12 +174,20 @@ export const DiagramFullscreenButton = ({
                     sourceExtension={sourceExtension}
                   />
                 ) : null}
+                {showCopy ? (
+                  <CodeBlockCopyButton
+                    code={chart}
+                    label={t.copyDiagram}
+                    {...getCopyCallbacks(controlsConfig, name)}
+                  />
+                ) : null}
                 <button
                   aria-label={t.exitFullscreen}
                   className={cn(
                     "rounded-md p-2 text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
                   )}
                   onClick={handleToggle}
+                  ref={initialFocusRef}
                   title={t.exitFullscreen}
                   type="button"
                 >
@@ -171,7 +198,12 @@ export const DiagramFullscreenButton = ({
               <div
                 className={cn("flex size-full items-center justify-center p-4")}
                 onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  // Let Escape reach the dialog so it closes from any focused control.
+                  if (e.key !== "Escape") {
+                    e.stopPropagation();
+                  }
+                }}
                 role="presentation"
               >
                 {DiagramComponent ? (

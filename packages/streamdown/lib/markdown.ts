@@ -31,9 +31,12 @@ export type UrlTransform = (
 export type Components = {
   [Key in keyof JSX.IntrinsicElements]?:
     | ComponentType<JSX.IntrinsicElements[Key] & ExtraProps>
-    | keyof JSX.IntrinsicElements;
+    | keyof JSX.IntrinsicElements
+    | undefined;
 } & {
-  inlineCode?: ComponentType<JSX.IntrinsicElements["code"] & ExtraProps>;
+  inlineCode?:
+    | ComponentType<JSX.IntrinsicElements["code"] & ExtraProps>
+    | undefined;
   [key: string]:
     | ComponentType<Record<string, unknown> & ExtraProps>
     | keyof JSX.IntrinsicElements
@@ -41,42 +44,80 @@ export type Components = {
 };
 
 export interface Options {
-  allowElement?: AllowElement;
-  allowedElements?: readonly string[];
-  children?: string;
-  components?: Components;
-  disallowedElements?: readonly string[];
-  rehypePlugins?: PluggableList;
-  remarkPlugins?: PluggableList;
-  remarkRehypeOptions?: Readonly<RemarkRehypeOptions>;
-  skipHtml?: boolean;
-  unwrapDisallowed?: boolean;
-  urlTransform?: UrlTransform;
+  allowElement?: AllowElement | undefined;
+  allowedElements?: readonly string[] | undefined;
+  children?: string | undefined;
+  components?: Components | undefined;
+  disallowedElements?: readonly string[] | undefined;
+  rehypePlugins?: PluggableList | undefined;
+  remarkPlugins?: PluggableList | undefined;
+  remarkRehypeOptions?: Readonly<RemarkRehypeOptions> | undefined;
+  skipHtml?: boolean | undefined;
+  unwrapDisallowed?: boolean | undefined;
+  urlTransform?: UrlTransform | undefined;
 }
 
 // Stable references for common cases
 const EMPTY_PLUGINS: PluggableList = [];
 const DEFAULT_REMARK_REHYPE_OPTIONS = { allowDangerousHtml: true };
 
-// Plugin closures and option objects are identities, not function names or
-// JSON. Names collide after minification; JSON drops callbacks and rejects
-// cyclic options. Weak keys also avoid retaining consumer configurations.
+// Function names do not distinguish closures or minified plugins.
+// Weak keys also avoid retaining consumer configurations.
 const identityIds = new WeakMap<object, number>();
 let nextIdentityId = 0;
-const cacheIdentity = (value: unknown): string => {
-  if (
-    value !== null &&
-    (typeof value === "object" || typeof value === "function")
-  ) {
-    const object = value as object;
-    let id = identityIds.get(object);
-    if (id === undefined) {
-      id = ++nextIdentityId;
-      identityIds.set(object, id);
-    }
-    return `ref:${id}`;
+
+const getIdentityId = (value: object): number => {
+  const cached = identityIds.get(value);
+  if (cached !== undefined) {
+    return cached;
   }
-  return `${typeof value}:${String(value)}`;
+  const id = nextIdentityId;
+  nextIdentityId += 1;
+  identityIds.set(value, id);
+  return id;
+};
+
+const serializeOptions = (options: unknown): string => {
+  try {
+    const paths = new WeakMap<object, string[]>();
+    const callbacks: [string[], number][] = [];
+    const types: [string[], string][] = [];
+    const data = JSON.stringify(
+      options,
+      function (this: object, key, value: unknown) {
+        const parentPath = paths.get(this);
+        const path = parentPath ? [...parentPath, key] : [];
+        if (typeof value === "function") {
+          callbacks.push([path, getIdentityId(value)]);
+          return value;
+        }
+        // JSON.stringify writes a RegExp, Map or Set as `{}`, so write its
+        // pattern or contents instead and record its type.
+        let serialized = value;
+        if (value instanceof RegExp) {
+          types.push([path, "RegExp"]);
+          serialized = String(value);
+        } else if (value instanceof Map || value instanceof Set) {
+          types.push([path, value instanceof Map ? "Map" : "Set"]);
+          serialized = [...value];
+        }
+        if (serialized !== null && typeof serialized === "object") {
+          paths.set(serialized, path);
+        }
+        return serialized;
+      }
+    );
+    // Separate callback and type paths from user data to avoid tag collisions.
+    return JSON.stringify([data, callbacks, types]);
+  } catch {
+    if (
+      options !== null &&
+      (typeof options === "object" || typeof options === "function")
+    ) {
+      return `ref:${getIdentityId(options)}`;
+    }
+    return `${typeof options}:${String(options)}`;
+  }
 };
 
 // LRU Cache for unified processors
@@ -104,18 +145,30 @@ class ProcessorCache {
       return key;
     }
 
+    const serializePluginEntry = (plugin: PluggableList[number]): string => {
+      if (Array.isArray(plugin)) {
+        const [pluginFn, ...pluginOptions] = plugin;
+        const head =
+          typeof pluginFn === "function"
+            ? String(getIdentityId(pluginFn))
+            : String(pluginFn);
+        if (pluginOptions.length === 0) {
+          return head;
+        }
+        return `${head}:${pluginOptions.map(serializeOptions).join(":")}`;
+      }
+      return typeof plugin === "function"
+        ? String(getIdentityId(plugin))
+        : String(plugin);
+    };
+
     const serializePlugins = (plugins: PluggableList | undefined): string =>
-      (plugins ?? [])
-        .map((plugin) =>
-          Array.isArray(plugin)
-            ? plugin.map(cacheIdentity).join(":")
-            : cacheIdentity(plugin)
-        )
-        .join(",");
+      plugins?.length ? plugins.map(serializePluginEntry).join(",") : "";
+
     const rehypeKey = serializePlugins(rehypePlugins);
     const remarkKey = serializePlugins(remarkPlugins);
     const optionsKey = remarkRehypeOptions
-      ? cacheIdentity(remarkRehypeOptions)
+      ? serializeOptions(remarkRehypeOptions)
       : "";
 
     const key = `${remarkKey}::${rehypeKey}::${optionsKey}::${Boolean(options.skipHtml)}`;

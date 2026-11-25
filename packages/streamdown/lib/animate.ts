@@ -58,8 +58,8 @@ export interface AnimateTimeline {
 }
 
 export interface CreateAnimateTimelineOptions {
-  maxBacklogMs?: number;
-  now?: () => number;
+  maxBacklogMs?: number | undefined;
+  now?: (() => number) | undefined;
 }
 
 const defaultNow = (): number =>
@@ -192,17 +192,23 @@ export interface AnimationEffect {
 }
 
 export interface AnimateOptions {
-  animation?: "fadeIn" | "blurIn" | "slideUp" | (string & {}) | AnimationEffect;
-  duration?: number;
-  easing?: string;
+  animation?:
+    | "fadeIn"
+    | "blurIn"
+    | "slideUp"
+    | (string & {})
+    | AnimationEffect
+    | undefined;
+  duration?: number | undefined;
+  easing?: string | undefined;
   /**
    * Soft cap (ms) on how far ahead of wall-clock words may be scheduled.
    * Larger values favour longer cascades / stricter cross-block serialization;
    * smaller values keep a fast stream visually caught up. @default 320
    */
-  maxBacklogMs?: number;
-  sep?: "word" | "char";
-  stagger?: number;
+  maxBacklogMs?: number | undefined;
+  sep?: "word" | "char" | undefined;
+  stagger?: number | undefined;
 }
 
 const WHITESPACE_RE = /\s/;
@@ -805,10 +811,6 @@ function buildAnimatePlugin(
     renderState.lastRenderCharCount = charCounter.count;
     renderState.prevContentLength = 0;
   };
-
-  Object.defineProperty(rehypeAnimate, "name", {
-    value: `rehypeAnimate$${id}`,
-  });
 
   return {
     name: "animate",

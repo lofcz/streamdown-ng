@@ -25,19 +25,19 @@ export type TableCopyFormat = "csv" | "tsv" | "md";
 export type CopyControlConfig<TOnCopy = () => void> =
   | boolean
   | {
-      onCopy?: TOnCopy;
-      onError?: (error: Error) => void;
+      onCopy?: TOnCopy | undefined;
+      onError?: ((error: Error) => void) | undefined;
     };
 
 export type DiagramControls =
   | boolean
   | {
-      download?: DownloadControlConfig;
-      copy?: CopyControlConfig;
+      download?: DownloadControlConfig | undefined;
+      copy?: CopyControlConfig | undefined;
       /** SMILES only: skeletal structures vs compact CH₃ / COOH notation. */
-      compact?: boolean;
-      fullscreen?: boolean;
-      panZoom?: boolean;
+      compact?: boolean | undefined;
+      fullscreen?: boolean | undefined;
+      panZoom?: boolean | undefined;
     };
 
 export type ControlsConfig =
@@ -46,39 +46,45 @@ export type ControlsConfig =
       table?:
         | boolean
         | {
-            copy?: CopyControlConfig<(format: TableCopyFormat) => void>;
-            csvSeparator?: CSVSeparator;
-            download?: DownloadControlConfig;
-            fullscreen?: boolean;
-          };
+            copy?:
+              | CopyControlConfig<(format: TableCopyFormat) => void>
+              | undefined;
+            csvSeparator?: CSVSeparator | undefined;
+            download?: DownloadControlConfig | undefined;
+            fullscreen?: boolean | undefined;
+          }
+        | undefined;
       code?:
         | boolean
         | {
-            copy?: CopyControlConfig;
-            download?: DownloadControlConfig;
-          };
-      mermaid?: DiagramControls;
-      plantuml?: DiagramControls;
-      smiles?: DiagramControls;
-      vega?: DiagramControls;
+            copy?: CopyControlConfig | undefined;
+            download?: DownloadControlConfig | undefined;
+          }
+        | undefined;
+      mermaid?: DiagramControls | undefined;
+      plantuml?: DiagramControls | undefined;
+      smiles?: DiagramControls | undefined;
+      vega?: DiagramControls | undefined;
       /**
        * Per-engine controls for extra SVG diagrams registered via
        * `plugins.diagrams`, keyed by plugin `name`.
        */
-      diagrams?: Record<string, DiagramControls>;
+      diagrams?: Record<string, DiagramControls> | undefined;
       openscad?:
         | boolean
         | {
-            download?: DownloadControlConfig;
-            copy?: CopyControlConfig;
-            fullscreen?: boolean;
-          };
+            download?: DownloadControlConfig | undefined;
+            copy?: CopyControlConfig | undefined;
+            fullscreen?: boolean | undefined;
+          }
+        | undefined;
       image?:
         | boolean
         | {
-            download?: boolean;
-            fullscreen?: boolean;
-          };
+            download?: boolean | undefined;
+            fullscreen?: boolean | undefined;
+          }
+        | undefined;
     };
 
 export interface LinkSafetyModalProps {
@@ -90,11 +96,12 @@ export interface LinkSafetyModalProps {
 
 export interface LinkSafetyConfig {
   enabled: boolean;
-  onLinkCheck?: (url: string) => Promise<boolean> | boolean;
-  renderModal?: (props: LinkSafetyModalProps) => React.ReactNode;
+  onLinkCheck?: ((url: string) => Promise<boolean> | boolean) | undefined;
+  renderModal?: ((props: LinkSafetyModalProps) => React.ReactNode) | undefined;
 }
 
 export interface DiagramErrorComponentProps {
+  cause?: unknown;
   chart: string;
   error: string;
   retry: () => void;
@@ -102,46 +109,47 @@ export interface DiagramErrorComponentProps {
 
 export interface DiagramOptions {
   config?: unknown;
-  errorComponent?: React.ComponentType<DiagramErrorComponentProps>;
+  errorComponent?: React.ComponentType<DiagramErrorComponentProps> | undefined;
 }
 
 export type MermaidErrorComponentProps = DiagramErrorComponentProps;
 
 export interface MermaidOptions {
-  config?: MermaidConfig;
-  errorComponent?: React.ComponentType<MermaidErrorComponentProps>;
+  config?: MermaidConfig | undefined;
+  errorComponent?: React.ComponentType<MermaidErrorComponentProps> | undefined;
 }
 
 export type PlantUmlErrorComponentProps = DiagramErrorComponentProps;
 
 export interface PlantUmlOptions {
-  config?: PlantUmlConfig;
-  errorComponent?: React.ComponentType<PlantUmlErrorComponentProps>;
+  config?: PlantUmlConfig | undefined;
+  errorComponent?: React.ComponentType<PlantUmlErrorComponentProps> | undefined;
 }
 
 export type VegaErrorComponentProps = DiagramErrorComponentProps;
 
 export interface VegaOptions {
-  config?: VegaConfig;
-  errorComponent?: React.ComponentType<VegaErrorComponentProps>;
+  config?: VegaConfig | undefined;
+  errorComponent?: React.ComponentType<VegaErrorComponentProps> | undefined;
 }
 
 export type SmilesErrorComponentProps = DiagramErrorComponentProps;
 
 export interface SmilesOptions {
-  config?: SmilesConfig;
-  errorComponent?: React.ComponentType<SmilesErrorComponentProps>;
+  config?: SmilesConfig | undefined;
+  errorComponent?: React.ComponentType<SmilesErrorComponentProps> | undefined;
 }
 
 export interface OpenScadErrorComponentProps {
+  cause?: unknown;
   code: string;
   error: string;
   retry: () => void;
 }
 
 export interface OpenScadOptions {
-  config?: OpenScadConfig;
-  errorComponent?: React.ComponentType<OpenScadErrorComponentProps>;
+  config?: OpenScadConfig | undefined;
+  errorComponent?: React.ComponentType<OpenScadErrorComponentProps> | undefined;
 }
 
 /**
@@ -189,39 +197,39 @@ export type PortalTarget = HTMLElement | null | (() => HTMLElement | null);
 // Combined context for better performance - reduces React tree depth from 5 nested providers to 1
 export interface StreamdownContextType {
   /** Icon resolver for custom callouts (`>>> (icon)[Title]{color}`). */
-  calloutIcon?: CalloutIconResolver;
+  calloutIcon?: CalloutIconResolver | undefined;
   /** Style resolver for custom callouts (background tint + accent). */
-  calloutStyle?: CalloutStyleResolver;
+  calloutStyle?: CalloutStyleResolver | undefined;
   /** Max height for code blocks (px number or CSS length). `0` / `Infinity` disables. @default 400 */
-  codeBlockMaxHeight?: number | string;
+  codeBlockMaxHeight?: number | string | undefined;
   /** Fence languages rendered verbatim without highlighting or controls. */
-  codeBlockRawLanguages?: string[];
+  codeBlockRawLanguages?: string[] | undefined;
   /** Merged components/plugins so custom renderers (e.g. callout body) can re-parse nested markdown identically to the outer pass. */
-  components?: Components;
+  components?: Components | undefined;
   controls: ControlsConfig;
   /** Per-engine options for extra SVG diagrams, keyed by plugin `name`. */
-  diagrams?: Record<string, DiagramOptions>;
+  diagrams?: Record<string, DiagramOptions> | undefined;
   isAnimating: boolean;
   /** Show line numbers in code blocks. @default true */
   lineNumbers: boolean;
-  linkSafety?: LinkSafetyConfig;
+  linkSafety?: LinkSafetyConfig | undefined;
   /** Bullet style cycling for nested unordered lists. @default "hierarchical" */
   listStyle: ListStylePreset;
-  mermaid?: MermaidOptions;
+  mermaid?: MermaidOptions | undefined;
   mode: "static" | "streaming";
-  openscad?: OpenScadOptions;
-  plantuml?: PlantUmlOptions;
+  openscad?: OpenScadOptions | undefined;
+  plantuml?: PlantUmlOptions | undefined;
   /** Overlay portal target for fullscreen and the built-in link safety modal. */
-  portal?: PortalTarget;
-  rehypePlugins?: PluggableList;
-  remarkPlugins?: PluggableList;
+  portal?: PortalTarget | undefined;
+  rehypePlugins?: PluggableList | undefined;
+  remarkPlugins?: PluggableList | undefined;
   /** Component used for horizontal-scroll regions (code body, table). @default plain div */
-  scrollable?: ScrollableComponent;
+  scrollable?: ScrollableComponent | undefined;
   shikiTheme: [ThemeInput, ThemeInput];
-  smiles?: SmilesOptions;
+  smiles?: SmilesOptions | undefined;
   /** Max height for tables (px number or CSS length). `0` / `Infinity` disables. @default 300 */
-  tableMaxHeight?: number | string;
-  vega?: VegaOptions;
+  tableMaxHeight?: number | string | undefined;
+  vega?: VegaOptions | undefined;
 }
 
 const defaultShikiTheme: [ThemeInput, ThemeInput] = [

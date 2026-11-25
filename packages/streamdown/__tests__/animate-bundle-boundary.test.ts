@@ -8,8 +8,8 @@ import {
   packageEntry,
 } from "./built-consumer";
 
-// The engine names each rehype plugin it creates `rehypeAnimate$<id>`.
-const engineMarker = /rehypeAnimate\$/;
+// Only the word-fade engine stamps list markers with `data-sd-animate-marker`.
+const engineMarker = /data-sd-animate-marker/;
 
 describe.each(["index", "core"])("%s word fade bundle boundary", (entry) => {
   let workDir = "";

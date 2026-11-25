@@ -16,6 +16,7 @@
   ],
   "scripts": {
     "build": "node scripts/build.mjs",
+    "check-types:exact-optional": "pnpm build && tsc -p tsconfig.exact-optional.json",
     "test": "vitest run",
     "test:coverage": "vitest --coverage run"
   },

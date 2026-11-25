@@ -8,6 +8,17 @@ import {
 // blank-line interruptions (\w alone only matches [A-Za-z0-9_]).
 const openingTagPattern = /<([A-Za-z][\w:-]*)[\s>/]/;
 
+const defaultDefinitionScanner = createDefinitionScanner();
+
+export const hasFootnoteReference = (input: string): boolean =>
+  defaultDefinitionScanner.hasFootnoteReference(input);
+
+export const hasFootnoteDefinition = (input: string): boolean =>
+  defaultDefinitionScanner.hasFootnoteDefinition(input);
+
+export const hasLinkDefinition = (input: string): boolean =>
+  defaultDefinitionScanner.hasLinkDefinition(input);
+
 // HTML void elements (self-closing tags) that don't need closing tags
 const voidElements = new Set([
   "area",

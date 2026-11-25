@@ -12,7 +12,7 @@ export interface MathPlugin {
   /**
    * Get CSS styles path for math rendering
    */
-  getStyles?: () => string;
+  getStyles?: (() => string) | undefined;
   name: "katex";
   /**
    * Rehype plugin for rendering math
@@ -33,12 +33,12 @@ export interface MathPluginOptions {
    * KaTeX error color
    * @default "var(--color-muted-foreground)"
    */
-  errorColor?: string;
+  errorColor?: string | undefined;
   /**
    * Enable single dollar sign for inline math ($...$)
    * @default false
    */
-  singleDollarTextMath?: boolean;
+  singleDollarTextMath?: boolean | undefined;
 }
 
 /**

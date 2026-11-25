@@ -43,8 +43,10 @@ export const Diagram = ({
   const name = plugin?.name ?? fallbackName ?? "diagram";
   const {
     error,
+    errorCause,
     errorChart,
     setError,
+    setErrorCause,
     isLoading,
     svgContent,
     svgSize,
@@ -74,6 +76,7 @@ export const Diagram = ({
     if (!plugin) {
       requestRender(null);
       setError(diagramLabel(t, name, "missing"));
+      setErrorCause(undefined);
       return;
     }
     requestRender({
@@ -162,7 +165,12 @@ export const Diagram = ({
     if (ErrorComponent) {
       return (
         <div ref={containerRef}>
-          <ErrorComponent chart={chart} error={error} retry={retry} />
+          <ErrorComponent
+            cause={errorCause}
+            chart={chart}
+            error={error}
+            retry={retry}
+          />
         </div>
       );
     }

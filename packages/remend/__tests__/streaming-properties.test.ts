@@ -24,6 +24,7 @@ const INLINE_ATOMS = [
   "a_b_c",
   "[label](https://example.com)",
   "![alt](https://example.com/pic.png)",
+  "[![alt](pic.png)](page.html)",
   "<b>tag</b>",
   "value is 20~25 degrees",
 ];
@@ -180,7 +181,47 @@ const documentArbitrary = fc
   )
   .map((groups) => groups.map((atoms) => atoms.join(" ")).join("\n\n"));
 
+// Container blocks shift where a line's content starts, so every construct
+// must behave the same once its lines carry a quote marker or list indent
+const prefixLines =
+  (first: string, rest: string, blank: string) =>
+  (doc: string): string =>
+    doc
+      .split("\n")
+      .map((line, index) => {
+        if (index === 0) {
+          return first + line;
+        }
+        return line ? rest + line : blank;
+      })
+      .join("\n");
+
+const CONTAINERS = {
+  quote: prefixLines("> ", "> ", ">"),
+  tightQuote: prefixLines(">", ">", ">"),
+  bullet: prefixLines("- ", "  ", ""),
+  ordered: prefixLines("1. ", "   ", ""),
+};
+
+const containerNames = Object.keys(CONTAINERS) as (keyof typeof CONTAINERS)[];
+
+const containedArbitrary = (docArbitrary: fc.Arbitrary<string>) =>
+  fc
+    .tuple(
+      docArbitrary,
+      fc.array(fc.constantFrom(...containerNames), {
+        minLength: 1,
+        maxLength: 2,
+      })
+    )
+    .map(([doc, names]) =>
+      names.reduce((wrapped, name) => CONTAINERS[name](wrapped), doc)
+    );
+
 describe("streaming properties", () => {
+  // fast-check's 2000-run sweep is fine alone (~0.5s) but shares a
+  // GitHub-hosted runner with the other package suites. Under that load it
+  // exceeds Vitest's default 5s test timeout without failing an assertion.
   it("preserves authored text and re-heals to itself on every cut", () => {
     fc.assert(
       fc.property(documentArbitrary, fc.nat(), (doc, cutSeed) => {
@@ -189,7 +230,21 @@ describe("streaming properties", () => {
       }),
       { numRuns: 2000 }
     );
-  });
+  }, 30_000);
+
+  it("preserves authored text and code on every cut inside containers", () => {
+    fc.assert(
+      fc.property(
+        containedArbitrary(documentArbitrary),
+        fc.nat(),
+        (doc, cutSeed) => {
+          const cut = cutSeed % (doc.length + 1);
+          assertStreamingSafe(doc.slice(0, cut));
+        }
+      ),
+      { numRuns: 2000 }
+    );
+  }, 30_000);
 
   it("does not modify complete documents", () => {
     // Escape-oriented handlers (comparison operators, single tilde between
@@ -305,9 +360,7 @@ describe("appended closers", () => {
 
 describe("exhaustive prefix sweep", () => {
   // Every prefix of a fixed corpus, deterministically. The corpus mixes
-  // constructs that interact: identifiers with double underscores next to
-  // real emphasis, fences of both characters, spans with multi-backtick runs,
-  // and half-typed closers.
+  // constructs that interact.
   const corpus = [
     "Use snake__case for names and __bold text__ throughout.",
     "The `obj__attr` field pairs with **bold** and _italic_ text.",

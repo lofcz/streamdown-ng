@@ -1,6 +1,7 @@
 import { findInlineBlockStart } from "./inline-block";
 import {
   getScan,
+  inAutolinkAt,
   inHtmlTagAt,
   inLinkUrlAt,
   inMathAt,
@@ -153,7 +154,7 @@ const findOpenInlineMath = (scan: TextScan, inlineMath: boolean): number => {
 };
 
 // An unclosed code span or inline math span renders as literal text, so its
-// markers still count
+// markers still count. Markers inside a bare URL are part of the link.
 const isProseAt = (
   scan: TextScan,
   i: number,
@@ -164,7 +165,8 @@ const isProseAt = (
     scan.regions[i] === REGION.CODE_SPAN_OPEN) &&
   !(i < openMath && inMathAt(scan, i, inlineMath)) &&
   !inLinkUrlAt(scan, i) &&
-  !inHtmlTagAt(scan, i);
+  !inHtmlTagAt(scan, i) &&
+  !inAutolinkAt(scan, i);
 
 interface LinkLabel {
   end: number;
@@ -181,7 +183,8 @@ const findLinkLabels = (
 ): LinkLabel[] => {
   const { text } = scan;
   const labels: LinkLabel[] = [];
-  const openers: { active: boolean; start: number }[] = [];
+  const openers: number[] = [];
+  let inactiveThrough = -1;
   for (let i = from; i < text.length; i += 1) {
     const char = text[i];
     if (
@@ -192,31 +195,58 @@ const findLinkLabels = (
       continue;
     }
     if (char === "[") {
-      openers.push({ active: true, start: i });
+      openers.push(i);
       continue;
     }
     const opener = openers.pop();
-    if (opener?.active && text[i + 1] === "(" && inLinkUrlAt(scan, i + 2)) {
-      labels.push({ end: i, start: opener.start });
-      // Links cannot contain links, so a link deactivates every bracket that could enclose it
-      if (text[opener.start - 1] !== "!" || isEscaped(text, opener.start - 1)) {
-        for (const outer of openers) {
-          outer.active = false;
-        }
+    if (
+      opener !== undefined &&
+      opener > inactiveThrough &&
+      text[i + 1] === "(" &&
+      inLinkUrlAt(scan, i + 2)
+    ) {
+      labels.push({ end: i, start: opener });
+      // Links cannot contain links. All remaining openers precede this one,
+      // so a boundary deactivates them without revisiting the retained prefix.
+      // Keep inactive openers on the stack to consume their closing brackets.
+      if (text[opener - 1] !== "!" || isEscaped(text, opener - 1)) {
+        inactiveThrough = opener;
       }
     }
   }
   return labels;
 };
 
-const scopeOf = (labels: readonly LinkLabel[], index: number): number => {
-  let scope = -1;
-  for (const label of labels) {
-    if (label.start < index && index < label.end && label.start > scope) {
-      scope = label.start;
-    }
+// Bracket matching only produces nested or disjoint labels, so the label
+// holding a position is the innermost one that started before it and has not
+// ended, which a sorted sweep finds without scanning every label per run
+const scopeAt = (
+  labels: readonly LinkLabel[],
+  index: number,
+  cursor: { at: number },
+  active: LinkLabel[]
+): number => {
+  while (cursor.at < labels.length && labels[cursor.at].start < index) {
+    active.push(labels[cursor.at]);
+    cursor.at += 1;
   }
-  return scope;
+  let end = active.length;
+  while (end > 0 && active[end - 1].end <= index) {
+    end -= 1;
+  }
+  // An ended outer label can't sit above a live inner one, but a partial
+  // overlap would, so drop every label that has ended
+  if (end < active.length) {
+    let write = 0;
+    for (let i = 0; i < end; i += 1) {
+      if (active[i].end > index) {
+        active[write] = active[i];
+        write += 1;
+      }
+    }
+    active.length = write;
+  }
+  return active.at(-1)?.start ?? -1;
 };
 
 const collectDelimiterRuns = (
@@ -227,7 +257,11 @@ const collectDelimiterRuns = (
   const { text } = scan;
   const runs: DelimiterRun[] = [];
   const openMath = findOpenInlineMath(scan, inlineMath);
-  const labels = findLinkLabels(scan, from, openMath, inlineMath);
+  const labels = findLinkLabels(scan, from, openMath, inlineMath).sort(
+    (a, b) => a.start - b.start || b.end - a.end
+  );
+  const scope = { at: 0 };
+  const activeLabels: LinkLabel[] = [];
   const isRunMarker = (i: number, marker: string): boolean =>
     text[i] === marker && isProseAt(scan, i, openMath, inlineMath);
 
@@ -254,7 +288,7 @@ const collectDelimiterRuns = (
           end - start,
           escaped ? marker : charBefore(text, i),
           charAt(text, end),
-          scopeOf(labels, start)
+          scopeAt(labels, start, scope, activeLabels)
         )
       );
     }
@@ -285,18 +319,72 @@ const canMatch = (opener: DelimiterRun, closer: DelimiterRun): boolean => {
   return !violatesRuleOfThree(opener, closer);
 };
 
+// A closer's class is everything a match can depend on besides the opener:
+// marker, whether the closer can itself open, and its length modulo 3. Tildes
+// match only equal lengths, and a tilde run longer than 2 never reaches here.
+// One entry per class records the lowest opener a search of that class has
+// already proven can't match, so the next closer doesn't rescan it.
+const OPENER_CLASSES = 14;
+
+const closerClass = (closer: DelimiterRun): number => {
+  if (closer.marker === "~") {
+    return 12 + closer.count - 1;
+  }
+  const kind = closer.marker === "_" ? 6 : 0;
+  return kind + (closer.canOpen ? 3 : 0) + (closer.count % 3);
+};
+
+const openerBottoms = (floor: number): number[] =>
+  Array.from({ length: OPENER_CLASSES }, () => floor);
+
+const markerRange = (marker: string): [number, number] => {
+  if (marker === "~") {
+    return [12, 14];
+  }
+  return marker === "_" ? [6, 12] : [0, 6];
+};
+
+// A match changed an opener's length, which can let a closer class that
+// already passed it match it now, so that opener must be searched again
+const reopen = (
+  bottoms: number[],
+  opener: DelimiterRun,
+  index: number
+): void => {
+  const [from, to] = markerRange(opener.marker);
+  for (let cls = from; cls < to; cls += 1) {
+    if (bottoms[cls] > index) {
+      bottoms[cls] = index;
+    }
+  }
+};
+
+const clampBottoms = (bottoms: number[], length: number): void => {
+  for (let cls = 0; cls < bottoms.length; cls += 1) {
+    if (bottoms[cls] > length) {
+      bottoms[cls] = length;
+    }
+  }
+};
+
 const matchCloser = (
   stack: DelimiterRun[],
   floor: number,
+  bottoms: number[],
   closer: DelimiterRun,
   pairs: DelimiterPair[]
 ): void => {
   while (closer.count > 0) {
+    const cls = closerClass(closer);
     let openerIndex = stack.length - 1;
-    while (openerIndex >= floor && !canMatch(stack[openerIndex], closer)) {
+    const limit = Math.max(floor, bottoms[cls]);
+    while (openerIndex >= limit && !canMatch(stack[openerIndex], closer)) {
       openerIndex -= 1;
     }
-    if (openerIndex < floor) {
+    if (openerIndex < limit) {
+      // Everything above this point failed for this class, and a later closer
+      // of it can only see more openers, so it can start there
+      bottoms[cls] = stack.length;
       return;
     }
 
@@ -313,7 +401,14 @@ const matchCloser = (
     closer.pairsClosed += 1;
     closer.closesPartially = opener.count > 0;
     pairs.push({ closer, opener, used });
-    stack.length = opener.count > 0 ? openerIndex + 1 : openerIndex;
+    if (opener.count > 0) {
+      // The opener's new length can match a class that already skipped it
+      reopen(bottoms, opener, openerIndex);
+      stack.length = openerIndex + 1;
+    } else {
+      stack.length = openerIndex;
+    }
+    clampBottoms(bottoms, stack.length);
   }
 };
 
@@ -326,19 +421,31 @@ const matchPass = (
 ): DelimiterRun[] => {
   const stack: DelimiterRun[] = [];
   const floors: number[] = [];
+  // Bounds recorded inside a link label don't apply outside it, so each pair
+  // an earlier pass opened gets its own bounds, above that pair's floor
+  const bounds: number[][] = [openerBottoms(0)];
 
   for (const run of runs) {
     if (!inPass(run)) {
       for (let i = 0; i < run.pairsClosed; i += 1) {
         stack.length = floors.pop() ?? 0;
+        bounds.pop();
+        clampBottoms(bounds.at(-1) ?? [], stack.length);
       }
       for (let i = 0; i < run.pairsOpened; i += 1) {
         floors.push(stack.length);
+        bounds.push(openerBottoms(stack.length));
       }
       continue;
     }
     if (run.canClose) {
-      matchCloser(stack, floors.at(-1) ?? 0, run, pairs);
+      matchCloser(
+        stack,
+        floors.at(-1) ?? 0,
+        bounds.at(-1) ?? openerBottoms(0),
+        run,
+        pairs
+      );
     }
     if (run.canOpen && run.count > 0) {
       stack.push(run);
@@ -496,24 +603,39 @@ export const matchHealed = (
 const kindOf = (pair: DelimiterPair): string =>
   pair.opener.marker === "~" ? "~" : pair.opener.marker + pair.used;
 
-const parentOf = (
-  pairs: readonly DelimiterPair[],
-  pair: DelimiterPair
-): DelimiterPair | undefined => {
-  let parent: DelimiterPair | undefined;
-  for (const other of pairs) {
-    if (
-      other.opener.index < pair.opener.index &&
-      other.closer.index >= pair.closer.index &&
-      (!parent ||
-        other.opener.index > parent.opener.index ||
-        (other.opener.index === parent.opener.index &&
-          other.closer.index < parent.closer.index))
+// Each pair's parent is the innermost pair whose opener comes strictly before
+// its own and whose closer is not before its own. Matched pairs never cross,
+// so a sweep in opener order with a stack of enclosing pairs finds every
+// parent at once instead of scanning all pairs for each one.
+const parentsOf = (
+  pairs: readonly DelimiterPair[]
+): Map<DelimiterPair, DelimiterPair | undefined> => {
+  const sorted = [...pairs].sort(
+    (a, b) => a.opener.index - b.opener.index || b.closer.index - a.closer.index
+  );
+  const parents = new Map<DelimiterPair, DelimiterPair | undefined>();
+  const stack: DelimiterPair[] = [];
+  for (const pair of sorted) {
+    while (
+      (stack.at(-1)?.closer.index ?? Number.POSITIVE_INFINITY) <
+      pair.closer.index
     ) {
-      parent = other;
+      stack.pop();
+    }
+    const top = stack.at(-1);
+    // A pair sharing this opener encloses it but can't be its parent, and
+    // anything enclosing that pair encloses this one, so they share a parent
+    parents.set(
+      pair,
+      top && top.opener.index === pair.opener.index ? parents.get(top) : top
+    );
+    // Of pairs spanning the same runs, the first matched is the parent of
+    // what they enclose, and the stable sort already pushed it
+    if (top?.opener.index !== pair.opener.index || top.closer !== pair.closer) {
+      stack.push(pair);
     }
   }
-  return parent;
+  return parents;
 };
 
 // An authored pair whose opener follows punctuation, as in **注意：**这是, is
@@ -528,8 +650,9 @@ const opensAfterPunctuation = (pair: DelimiterPair): boolean =>
 const nestsSameKind = (match: DelimiterMatch, insertAt: number): boolean => {
   const healed = (pair: DelimiterPair): boolean =>
     pair.closer.index + pair.closer.length > insertAt;
+  const parents = parentsOf(match.pairs);
   return match.pairs.some((pair) => {
-    const parent = parentOf(match.pairs, pair);
+    const parent = parents.get(pair);
     return (
       parent !== undefined &&
       kindOf(parent) === kindOf(pair) &&
