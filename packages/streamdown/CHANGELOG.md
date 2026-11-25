@@ -1,5 +1,19 @@
 # streamdown
 
+## 2.17.3
+
+### Patch Changes
+
+- 973860a: Apply changes to `mermaid`, `controls`, `portal`, `remarkPlugins`, `rehypePlugins`, `allowedTags`, `caret`, `icons`, `parseIncompleteMarkdown`, `remend`, `BlockComponent` and `parseMarkdownIntoBlocksFn` when the Markdown content stays the same.
+- e22f66d: Leave a multi-line custom tag at the start of a line unpadded when padding would break the block around it: when the line continues a paragraph, when the tag is in a blockquote, or when text follows the opening tag in a list item. The tag no longer renders empty with its body moved out, and the list or blockquote no longer splits.
+- b5fab3f: Keep link addresses when a table is copied or downloaded. A link in a cell is exported as `[text](href)` in Markdown, CSV and TSV, including links rendered behind link safety, which now carry their address in `data-href`. Autolinks keep reading as their own address, and a link that is still streaming in stays plain text. A literal ! immediately before a link is escaped so the export is not read as an image, and a link whose label is a path or bare domain keeps its href.
+- f1b28ab: Sync with `vercel/streamdown@4e86b04`:
+
+  - **Streamdown**: support `exactOptionalPropertyTypes` in public types, isolate processor caches by plugin function/callback/RegExp/Map/Set options, refresh custom components on unchanged Markdown, only rewrite `#fragment` links whose target raw-HTML ID was clobbered without quadratic streaming work, neutralize spreadsheet formulas and bound/escape Markdown/image/row-header table exports, pass `cause` to diagram `errorComponent`, add fullscreen copy callbacks, dialog focus management, Escape handling from focused controls, and page wheel scroll when pan/zoom controls are hidden, match code download extensions case-insensitively, count only letters for RTL detection, and linearize custom-tag pairing while leaving inline/self-closing tags unpadded.
+  - **remend**: linear-time emphasis, link/image bracket, and bare-URL autolink scanning (with CJK punctuation boundary support), protect single tildes inside URLs and HTML attributes, close links around incomplete images, prevent partial list dashes after containers from turning into setext headings, preserve unfinished link destinations when holding pending inline markers, and support `exactOptionalPropertyTypes`.
+  - **CJK**: split `www.` autolinks at CJK punctuation boundaries while preserving bold autolink restoration and explicit link text.
+  - **Mermaid / Code / Math**: support `exactOptionalPropertyTypes` in plugin option types, and add `useMermaidDefaults` support in `@lofcz/streamdown-mermaid`.
+
 ## 2.17.2
 
 ### Patch Changes
