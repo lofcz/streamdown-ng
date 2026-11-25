@@ -1,9 +1,10 @@
-import { isInsideCodeBlock } from "./code-block-utils";
-import { isWithinMathBlock } from "./utils";
-
 // Handles incomplete setext heading underlines during streaming
 // Setext headings use --- or === on the line below text to create headings
 // During streaming, partial list items (like "-") can be misinterpreted as setext heading underlines
+
+import { isInsideCodeBlock } from "./code-block-utils";
+import { getScan } from "./scan";
+import { isWithinMathBlock } from "./utils";
 
 // Regex patterns defined at top level for performance
 const DASH_ONLY_PATTERN = /^-{1,2}$/;
@@ -67,6 +68,28 @@ const isOutsidePreviousContainer = (
   return BLOCKQUOTE_PATTERN.test(previousLine);
 };
 
+// Counts up to `maxDepth` block quote markers that open a line, each after
+// up to 3 spaces, and returns the rest of the line after them
+const splitQuoteMarkers = (
+  line: string,
+  maxDepth = Number.POSITIVE_INFINITY
+): { depth: number; rest: string } => {
+  let depth = 0;
+  let start = 0;
+  while (depth < maxDepth) {
+    let i = start;
+    while (line[i] === " " && i - start < 3) {
+      i += 1;
+    }
+    if (line[i] !== ">") {
+      break;
+    }
+    depth += 1;
+    start = line[i + 1] === " " ? i + 2 : i + 1;
+  }
+  return { depth, rest: line.slice(start) };
+};
+
 /**
  * Detects if the text ends with a potential incomplete setext heading underline
  * and adds a space to break the setext heading pattern
@@ -84,17 +107,40 @@ export const handleIncompleteSetextHeading = (text: string): string => {
     return text;
   }
 
-  const lastLine = text.substring(lastNewlineIndex + 1);
-  const previousContent = text.substring(0, lastNewlineIndex);
+  // Inside an unterminated fenced code block or math block every line is code
+  // or math, so nothing can turn into a heading and a zero-width space would
+  // end up in the content.
   const lastLineStart = lastNewlineIndex + 1;
   if (
+    getScan(text).openFence ||
     isInsideCodeBlock(text, lastLineStart) ||
     isWithinMathBlock(text, lastLineStart)
   ) {
     return text;
   }
 
-  if (EMPTY_DASH_LIST_PATTERN.test(lastLine) && previousContent.trim()) {
+  // An underline only belongs to a paragraph in the same block quote, so
+  // compare the lines after their quote markers. A line with more or fewer
+  // markers is in another container and can't underline it.
+  const last = splitQuoteMarkers(text.substring(lastLineStart));
+  const rawLines = text.substring(0, lastNewlineIndex).split("\n");
+  if (splitQuoteMarkers(rawLines.at(-1) ?? "").depth !== last.depth) {
+    return text;
+  }
+  const lastLine = last.rest;
+  // A line outside the quote ends any list inside it
+  const quotedLines =
+    last.depth === 0
+      ? rawLines
+      : rawLines.map((line) => {
+          const quoted = splitQuoteMarkers(line, last.depth);
+          return quoted.depth < last.depth ? "" : quoted.rest;
+        });
+
+  if (
+    EMPTY_DASH_LIST_PATTERN.test(lastLine) &&
+    quotedLines.some((line) => line.trim().length > 0)
+  ) {
     return `${text}\u200B`;
   }
 
@@ -112,14 +158,13 @@ export const handleIncompleteSetextHeading = (text: string): string => {
     !lastLine.match(DASH_WITH_SPACE_PATTERN)
   ) {
     // Check if there's content on the previous line (required for setext heading)
-    const lines = previousContent.split("\n");
-    const previousLine = lines.at(-1);
+    const previousLine = quotedLines.at(-1);
 
     // If the previous line has content, this could be interpreted as a setext heading
     if (
       previousLine &&
       previousLine.trim().length > 0 &&
-      !isOutsidePreviousContainer(previousLine, lastLine, lines)
+      !isOutsidePreviousContainer(previousLine, lastLine, quotedLines)
     ) {
       // Add text to break the setext heading pattern
       // We add a zero-width space (\u200B) which breaks the pattern without being visible
@@ -135,8 +180,7 @@ export const handleIncompleteSetextHeading = (text: string): string => {
     !lastLine.match(EQUALS_WITH_SPACE_PATTERN)
   ) {
     // Check if there's content on the previous line
-    const lines = previousContent.split("\n");
-    const previousLine = lines.at(-1);
+    const previousLine = quotedLines.at(-1);
 
     if (previousLine && previousLine.trim().length > 0) {
       // Add text to break the setext heading pattern
