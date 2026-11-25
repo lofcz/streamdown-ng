@@ -17,7 +17,7 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import type { Plugin } from "unified";
 import { unified } from "unified";
-import { visit } from "unist-util-visit";
+import { visitParents } from "unist-util-visit-parents";
 
 /** Returns true when every child of the element is a text or comment node. */
 const hasOnlyTextChildren = (node: Element): boolean =>
@@ -61,9 +61,21 @@ export const rehypeMarkdownInCustomTags: Plugin<[string[], string[]?], Root> =
       (literalTagNames ?? []).map((t) => t.toLowerCase())
     );
 
-    visit(tree, "element", (node: Element) => {
+    visitParents(tree, "element", (node: Element, ancestors) => {
       const tag = node.tagName.toLowerCase();
       if (!tagSet.has(tag) || literalSet.has(tag)) {
+        return;
+      }
+
+      // Tags inside a paragraph are already inline HTML whose phrasing
+      // content remark parsed; wrapping their text in a block <p> would nest
+      // <p> inside <p>.
+      if (
+        ancestors.some(
+          (ancestor) =>
+            ancestor.type === "element" && ancestor.tagName.toLowerCase() === "p"
+        )
+      ) {
         return;
       }
 
