@@ -157,6 +157,7 @@ export interface IncrementalParseState {
   /** Tag-preprocessed markdown that produced `blocks` (before last-block remend). */
   source: string;
   /** How many leading blocks have been checked to sit at their expected offsets. */
+  parseFn?: (value: string) => string[];
   verifiedCount?: number;
   verifiedLength?: number;
 }
@@ -172,6 +173,7 @@ const fullParseState = (
       ? parseBlocks(markdown, definitions)
       : parseFn(markdown),
   definitions,
+  parseFn,
   verifiedCount: 0,
   verifiedLength: 0,
 });
@@ -225,6 +227,7 @@ const reuseParsedBlocks = (
   return {
     source: markdown,
     definitions: previous.definitions,
+    parseFn,
     blocks: previous.blocks.slice(0, stableCount).concat(tailBlocks),
     verifiedCount,
     verifiedLength,
@@ -368,6 +371,7 @@ export const parseMarkdownIntoBlocksIncremental = (
   if (
     !(
       prev?.source &&
+      (prev.parseFn ?? parseMarkdownIntoBlocks) === parseFn &&
       markdown.length >= prev.source.length &&
       markdown.slice(0, prev.source.length) === prev.source
     )
