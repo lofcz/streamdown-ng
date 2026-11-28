@@ -163,6 +163,7 @@ export type {
   MermaidOptions,
   OpenScadErrorComponentProps,
   OpenScadOptions,
+  OpenScadWarningComponentProps,
   PlantUmlErrorComponentProps,
   PlantUmlOptions,
   PortalTarget,

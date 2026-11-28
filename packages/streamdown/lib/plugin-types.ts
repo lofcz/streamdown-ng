@@ -281,6 +281,12 @@ export type OpenScadExportFormat = "stl" | "3mf";
 export interface OpenScadRenderResult {
   data: Uint8Array;
   format: OpenScadExportFormat;
+  /**
+   * Warnings the engine reported for a model that still rendered (an unknown
+   * module, function or variable is skipped, so part of the model is missing).
+   * Absent with plugin versions that do not collect them.
+   */
+  warnings?: string[];
 }
 
 export interface OpenScadInstance {

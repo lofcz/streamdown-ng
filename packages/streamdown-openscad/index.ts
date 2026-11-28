@@ -62,6 +62,12 @@ export type OpenScadExportFormat = "stl" | "3mf";
 export interface OpenScadRenderResult {
   data: Uint8Array;
   format: OpenScadExportFormat;
+  /**
+   * `WARNING:` lines OpenSCAD printed while rendering. The model exported,
+   * but a warning usually means part of the source was skipped: an unknown
+   * module, function or variable is ignored, so that part is missing.
+   */
+  warnings: string[];
 }
 
 export interface OpenScadConfig {
@@ -179,15 +185,28 @@ async function loadModule(runtime: Runtime) {
  * This matches how the openscad-wasm project's own examples and tests
  * drive the module.
  */
+const WARNING_PREFIX = "WARNING:";
+const MAX_WARNINGS = 20;
+
 async function createInstance(
   runtime: Runtime,
-  log: string[]
+  log: string[],
+  warnings: string[]
 ): Promise<OpenScadWasmInstance> {
   const mod = await loadModule(runtime);
   const pushLog = (text: string) => {
     log.push(text);
     if (log.length > 40) {
       log.shift();
+    }
+    // Kept apart from the tail: a long render log would push them out.
+    const line = text.trim();
+    if (
+      line.startsWith(WARNING_PREFIX) &&
+      warnings.length < MAX_WARNINGS &&
+      !warnings.includes(line)
+    ) {
+      warnings.push(line);
     }
   };
   const instance = await mod.default({
@@ -251,7 +270,8 @@ async function renderOpenScad(
 
   return await enqueue(runtime, async () => {
     const log: string[] = [];
-    const instance = await createInstance(runtime, log);
+    const warnings: string[] = [];
+    const instance = await createInstance(runtime, log, warnings);
     await prepareResources(
       runtime,
       instance,
@@ -291,7 +311,7 @@ async function renderOpenScad(
         reason || "OpenSCAD produced an empty export — check the model source"
       );
     }
-    return { data, format: resolvedFormat };
+    return { data, format: resolvedFormat, warnings };
   });
 }
 

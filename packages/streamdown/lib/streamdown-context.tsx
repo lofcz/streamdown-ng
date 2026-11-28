@@ -147,9 +147,22 @@ export interface OpenScadErrorComponentProps {
   retry: () => void;
 }
 
+export interface OpenScadWarningComponentProps {
+  code: string;
+  warnings: string[];
+}
+
 export interface OpenScadOptions {
   config?: OpenScadConfig | undefined;
   errorComponent?: React.ComponentType<OpenScadErrorComponentProps> | undefined;
+  /**
+   * Rendered with a model that exported while the engine reported warnings.
+   * The model on screen may be incomplete (a skipped unknown module leaves a
+   * part out), so a host can explain that or have the source corrected.
+   */
+  warningComponent?:
+    | React.ComponentType<OpenScadWarningComponentProps>
+    | undefined;
 }
 
 /**

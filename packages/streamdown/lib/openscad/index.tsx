@@ -32,9 +32,16 @@ export const OpenScad = ({
   const [lastValidResult, setLastValidResult] =
     useState<OpenScadRenderResult | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  // Warnings of the source they were reported for: `lastValidResult` can be
+  // an earlier source's model, whose warnings say nothing about this one.
+  const [warned, setWarned] = useState<{
+    code: string;
+    warnings: string[];
+  } | null>(null);
   const { openscad: openscadContext } = useContext(StreamdownContext);
   const openscadPlugin = useOpenScadPlugin();
   const ErrorComponent = openscadContext?.errorComponent;
+  const WarningComponent = openscadContext?.warningComponent;
   const isBlockIncomplete = useIsCodeFenceIncomplete();
 
   const { shouldRender, containerRef } = useDeferredRender({
@@ -68,6 +75,11 @@ export const OpenScad = ({
         const rendered = await instance.render(code, config);
         setResult(rendered);
         setLastValidResult(rendered);
+        setWarned(
+          rendered.warnings?.length
+            ? { code, warnings: rendered.warnings }
+            : null
+        );
       } catch (err) {
         // During streaming the fence content changes constantly; keep the
         // last valid model on screen instead of flashing errors.
@@ -76,6 +88,7 @@ export const OpenScad = ({
             err instanceof Error ? err.message : t.openscadRenderFailed;
           setError(errorMessage);
         }
+        setWarned(null);
       } finally {
         setIsLoading(false);
       }
@@ -202,6 +215,9 @@ export const OpenScad = ({
           />
         ) : null}
       </Suspense>
+      {WarningComponent && warned?.code === code ? (
+        <WarningComponent code={warned.code} warnings={warned.warnings} />
+      ) : null}
     </div>
   );
 };

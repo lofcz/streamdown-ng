@@ -363,3 +363,78 @@ describe("render", () => {
     expect(result.format).toBe("3mf");
   });
 });
+
+describe("warnings", () => {
+  // A factory that prints like OpenSCAD does: through the module's print hooks.
+  const printingFactory =
+    (lines: string[]): OpenScadWasmFactory =>
+    (options) => {
+      const files = new Map<string, Uint8Array>();
+      const instance: OpenScadWasmInstance = {
+        ENV: {},
+        FS: {
+          mkdir: () => undefined,
+          writeFile: (path, data) => {
+            files.set(
+              path,
+              typeof data === "string"
+                ? new TextEncoder().encode(data)
+                : new Uint8Array(data.buffer)
+            );
+          },
+          readFile: (path) => files.get(path) ?? new Uint8Array(),
+        },
+        callMain: (args) => {
+          for (const line of lines) {
+            options?.print?.(line);
+          }
+          files.set(args[args.indexOf("-o") + 1], new Uint8Array([1]));
+          return 0;
+        },
+      };
+      return Promise.resolve(instance);
+    };
+
+  it("returns the warnings of a model that still exported", async () => {
+    const plugin = createOpenScadPlugin({
+      engine: createWasmEngine(async () => ({
+        default: printingFactory([
+          "WARNING: Ignoring unknown module 'bond' in file /input.scad, line 3",
+          "Geometries in cache: 1",
+          "WARNING: Ignoring unknown module 'bond' in file /input.scad, line 3",
+          'WARNING: Ignoring unknown variable "radius" in file /input.scad, line 5',
+          "Total rendering time: 0:00:00.002",
+        ]),
+      })),
+    });
+    const result = await plugin.getOpenScad().render("sphere(5); bond();");
+    expect(result.warnings).toEqual([
+      "WARNING: Ignoring unknown module 'bond' in file /input.scad, line 3",
+      'WARNING: Ignoring unknown variable "radius" in file /input.scad, line 5',
+    ]);
+  });
+
+  it("keeps warnings a long render log would push out of the tail", async () => {
+    const plugin = createOpenScadPlugin({
+      engine: createWasmEngine(async () => ({
+        default: printingFactory([
+          "WARNING: Ignoring unknown function 'foo' in file /input.scad, line 1",
+          ...Array.from({ length: 60 }, (_, index) => `ECHO: ${index}`),
+        ]),
+      })),
+    });
+    const result = await plugin.getOpenScad().render("cube(foo(3));");
+    expect(result.warnings).toHaveLength(1);
+  });
+
+  it("reports none for a clean render", async () => {
+    const plugin = createOpenScadPlugin({
+      engine: createWasmEngine(async () => ({
+        default: printingFactory(["Total rendering time: 0:00:00.002"]),
+      })),
+    });
+    expect((await plugin.getOpenScad().render("cube(1);")).warnings).toEqual(
+      []
+    );
+  });
+});
